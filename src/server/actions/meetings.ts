@@ -189,3 +189,51 @@ export async function forceNextStageAction(meetingId: string): Promise<ActionRes
   await progressMeetingStage(meetingId, { force: true });
   return { ok: true, data: undefined };
 }
+
+/**
+ * 대시보드 "리마인드 알림 보내기" — 제안중/재조율중이면 현재 단계의 미응답 참석자에게,
+ * 확정 상태면 아직 참석 재확인을 안 한 참석자에게 알림을 재발송한다.
+ */
+export async function sendReminderAction(meetingId: string): Promise<ActionResult<{ remindedCount: number }>> {
+  const user = await requireCurrentUser();
+  const meeting = await prisma.meeting.findUniqueOrThrow({ where: { id: meetingId } });
+  if (meeting.organizerId !== user.id) return { ok: false, error: "주최자만 리마인드를 보낼 수 있어요." };
+
+  if (meeting.status === "확정") {
+    const targets = await prisma.participant.findMany({
+      where: { meetingId, userId: { not: user.id }, reconfirmedAt: null, confirmationStatus: { not: "불참" } },
+    });
+    if (targets.length === 0) return { ok: false, error: "이미 모두 참석 재확인을 완료했어요." };
+    for (const p of targets) {
+      await createNotification({
+        userId: p.userId,
+        meetingId,
+        type: "참석재확인",
+        message: `"${meeting.title}" 아직 참석 재확인을 하지 않으셨어요. 확인해주세요.`,
+      });
+    }
+    return { ok: true, data: { remindedCount: targets.length } };
+  }
+
+  if (meeting.status === "제안중" || meeting.status === "재조율중") {
+    const roleFilter: ParticipantRole[] = meeting.stage === "선택확인중" ? ["선택"] : ["필수", "주최자"];
+    const targets = await prisma.participant.findMany({
+      where: { meetingId, userId: { not: user.id }, role: { in: roleFilter }, respondedAt: null },
+    });
+    if (targets.length === 0) return { ok: false, error: "이미 모두 응답을 완료했어요." };
+    for (const p of targets) {
+      await createNotification({
+        userId: p.userId,
+        meetingId,
+        type: "응답요청",
+        message:
+          meeting.stage === "선택확인중"
+            ? `"${meeting.title}" 압축된 후보 시간 중 가능한 시간을 아직 알려주지 않으셨어요. 확인해주세요.`
+            : `"${meeting.title}" 아직 참석 가능 시간을 알려주지 않으셨어요. 확인해주세요.`,
+      });
+    }
+    return { ok: true, data: { remindedCount: targets.length } };
+  }
+
+  return { ok: false, error: "리마인드를 보낼 수 있는 상태가 아니에요." };
+}

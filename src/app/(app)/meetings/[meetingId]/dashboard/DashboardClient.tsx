@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { forceConfirmSlot, forceNextStageAction } from "@/server/actions/meetings";
+import { forceConfirmSlot, forceNextStageAction, sendReminderAction } from "@/server/actions/meetings";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { SubHeader } from "@/components/ui/SubHeader";
 import { useToast } from "@/components/ui/Toast";
@@ -52,6 +52,7 @@ export function DashboardClient(props: {
   const { showToast } = useToast();
   const [confirmKind, setConfirmKind] = useState<"confirmSlot" | "nextStage" | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const [isReminding, setIsReminding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const requiredParticipants = props.participants.filter((p) => p.role === "필수" || p.role === "주최자");
@@ -73,6 +74,20 @@ export function DashboardClient(props: {
       }
       showToast("처리됐어요");
       router.refresh();
+    })();
+  }
+
+  function sendReminder() {
+    setIsReminding(true);
+    setError(null);
+    (async () => {
+      const result = await sendReminderAction(props.meetingId);
+      setIsReminding(false);
+      if (!result.ok) {
+        showToast(result.error);
+        return;
+      }
+      showToast(`${result.data.remindedCount}명에게 리마인드를 보냈어요`);
     })();
   }
 
@@ -129,7 +144,14 @@ export function DashboardClient(props: {
         )}
 
         <div className="section">
-          <div className="section-title">참가자 응답 현황</div>
+          <div className="section-title-row">
+            <span className="section-title">참가자 응답 현황</span>
+            {props.status !== "취소" && (
+              <button type="button" className="ghost-btn small" disabled={isReminding} onClick={sendReminder}>
+                리마인드 보내기
+              </button>
+            )}
+          </div>
           <div className="role-group-label">필수 참석자</div>
           {requiredParticipants.map((p) => (
             <div key={p.userId} className="dash-participant-row">
