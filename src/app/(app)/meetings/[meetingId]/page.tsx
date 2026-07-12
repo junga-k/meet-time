@@ -180,7 +180,7 @@ export default async function MeetingDetailPage({ params }: { params: { meetingI
       </div>
 
       <div className="footer" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {gcalUrl && (
+        {gcalUrl && !meetingStarted && (
           <a href={gcalUrl} target="_blank" rel="noreferrer" className="btn btn-secondary" style={{ display: "block", textAlign: "center" }}>
             캘린더에 추가
           </a>
