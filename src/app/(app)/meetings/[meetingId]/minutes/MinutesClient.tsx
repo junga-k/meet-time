@@ -205,7 +205,11 @@ export function MinutesClient(props: {
           <div className="section-title-row">
             <span className="section-title">향후 추진 과제</span>
           </div>
-          {props.actionItems.length === 0 && <div className="action-empty">등록된 항목이 없어요</div>}
+          {props.actionItems.length === 0 && (
+            <div className="meta-box">
+              <div style={{ fontSize: 12.5 }}>등록된 항목이 없어요</div>
+            </div>
+          )}
           {props.actionItems.map((item) => {
             const overdue = item.dueDate && !item.isDone && item.dueDate.getTime() < Date.now();
             return (
