@@ -6,14 +6,7 @@ import { formatMeetingDate, formatTimeRange, isSameDay, startOfDay } from "@/lib
 import { getRoomAvailability, type RoomAvailability } from "@/server/actions/rooms";
 import { CalendarPicker } from "@/components/ui/CalendarPicker";
 import { useToast } from "@/components/ui/Toast";
-
-type RecentMeeting = {
-  id: string;
-  title: string;
-  status: string;
-  confirmedStartTime: Date | null;
-  confirmedEndTime: Date | null;
-};
+import { resolveMeetingCardHref, type MeetingCardVM } from "@/lib/meetingCard";
 
 const DOW = ["일", "월", "화", "수", "목", "금", "토"];
 const DAY_START = 9 * 60;
@@ -65,11 +58,11 @@ function getRoomStatus(room: RoomAvailability, searchMinutes: number | null, has
 export function ReservationsClient({
   initialDate,
   initialRooms,
-  recentMeetings,
+  myMeetings,
 }: {
   initialDate: string;
   initialRooms: RoomAvailability[];
-  recentMeetings: RecentMeeting[];
+  myMeetings: MeetingCardVM[];
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -143,18 +136,26 @@ export function ReservationsClient({
             </button>
           </div>
 
-          <div className="recent-label">최근 회의</div>
-          {recentMeetings.length === 0 && <div className="hint">최근 회의가 없어요</div>}
-          {recentMeetings.map((m) => (
-            <div key={m.id} className="recent-row" onClick={() => router.push(`/meetings/${m.id}`)}>
-              <span className="recent-title">{m.title}</span>
-              <span className="recent-meta">
-                {m.confirmedStartTime && m.confirmedEndTime
-                  ? `${formatMeetingDate(m.confirmedStartTime)} ${formatTimeRange(m.confirmedStartTime, m.confirmedEndTime)}`
-                  : m.status}
-              </span>
-            </div>
-          ))}
+          <div className="recent-label">내가 만든 회의</div>
+          {myMeetings.length === 0 && <div className="hint">아직 만든 회의가 없어요</div>}
+          {myMeetings.map((m) => {
+            const href = resolveMeetingCardHref(m);
+            return (
+              <div
+                key={m.meetingId}
+                className="recent-row"
+                style={{ opacity: href ? 1 : 0.85, cursor: href ? "pointer" : "default" }}
+                onClick={() => href && router.push(href)}
+              >
+                <span className="recent-title">{m.title}</span>
+                <span className="recent-meta">
+                  {m.confirmedStartTime && m.confirmedEndTime
+                    ? `${formatMeetingDate(m.confirmedStartTime)} ${formatTimeRange(m.confirmedStartTime, m.confirmedEndTime)}`
+                    : m.status}
+                </span>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="screen-scroll">

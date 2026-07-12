@@ -3,23 +3,9 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatMeetingDate, formatTimeRange } from "@/lib/dates";
-import type { MeetingStatus, MeetingStage, ParticipantRole, ConfirmationStatus } from "@/lib/enums";
+import { isPendingReconfirm, resolveMeetingCardHref, type MeetingCardVM as BaseMeetingCardVM } from "@/lib/meetingCard";
 
-export type MeetingCardVM = {
-  meetingId: string;
-  title: string;
-  status: MeetingStatus;
-  stage: MeetingStage;
-  myRole: ParticipantRole;
-  myConfirmationStatus: ConfirmationStatus;
-  myRespondedAt: Date | null;
-  myReconfirmedAt: Date | null;
-  confirmedStartTime: Date | null;
-  confirmedEndTime: Date | null;
-  hasRegisteredNote: boolean;
-  isEnded: boolean;
-  sortKey: number;
-};
+export type MeetingCardVM = BaseMeetingCardVM & { sortKey: number };
 
 type Filter = "전체" | "조율중" | "확정" | "종료";
 
@@ -29,10 +15,6 @@ const STATUS_LABEL: Record<string, { cls: string; text: string }> = {
   재조율중: { cls: "badge-red", text: "재조율중" },
   취소: { cls: "badge-gray", text: "취소" },
 };
-
-function isPendingReconfirm(vm: MeetingCardVM) {
-  return vm.status === "확정" && !vm.myReconfirmedAt && vm.myConfirmationStatus !== "불참";
-}
 
 function getStatusBadge(vm: MeetingCardVM) {
   if (isPendingReconfirm(vm)) return { cls: "badge-amber", text: "재확인 대기" };
@@ -54,34 +36,6 @@ function isUnresponded(vm: MeetingCardVM) {
   if (vm.status === "제안중" && vm.stage === "필수응답중" && (vm.myRole === "필수" || vm.myRole === "주최자")) return !vm.myRespondedAt;
   if (vm.status === "제안중" && vm.stage === "선택확인중" && vm.myRole === "선택") return !vm.myRespondedAt;
   return false;
-}
-
-function resolveCard(vm: MeetingCardVM): { href: string | null } {
-  if (vm.hasRegisteredNote) return { href: `/meetings/${vm.meetingId}` };
-
-  if (vm.status === "확정") {
-    if (isPendingReconfirm(vm)) return { href: `/meetings/${vm.meetingId}/reconfirm` };
-    return { href: `/meetings/${vm.meetingId}` };
-  }
-
-  if (vm.status === "재조율중") {
-    if (vm.myRole === "주최자") return { href: `/meetings/${vm.meetingId}/dashboard` };
-    return { href: null };
-  }
-
-  if (vm.status === "제안중") {
-    if (vm.stage === "필수응답중" && (vm.myRole === "필수" || vm.myRole === "주최자") && !vm.myRespondedAt) {
-      return { href: `/meetings/${vm.meetingId}/respond` };
-    }
-    if (vm.myRole === "주최자") return { href: `/meetings/${vm.meetingId}/dashboard` };
-    if (vm.stage === "필수응답중") return { href: null };
-    if (vm.stage === "선택확인중") {
-      if (vm.myRole === "선택" && !vm.myRespondedAt) return { href: `/meetings/${vm.meetingId}/shortlist` };
-      return { href: null };
-    }
-  }
-
-  return { href: null };
 }
 
 export function MeetingListClient({ meetings }: { meetings: MeetingCardVM[] }) {
@@ -135,7 +89,7 @@ export function MeetingListClient({ meetings }: { meetings: MeetingCardVM[] }) {
         )}
 
         {filtered.map((vm) => {
-          const { href } = resolveCard(vm);
+          const href = resolveMeetingCardHref(vm);
           const clickable = Boolean(href);
           const st = getStatusBadge(vm);
           const unresponded = isUnresponded(vm);
