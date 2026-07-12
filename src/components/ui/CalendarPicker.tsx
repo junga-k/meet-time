@@ -93,11 +93,12 @@ export function CalendarPicker(props: {
           if (!d) return <div key={i} className="calendar-day empty" />;
           const disabled = isDisabled(d);
           const { selected, inRange } = cellState(d);
+          const isToday = isSameDay(d, new Date());
           return (
             <button
               key={i}
               type="button"
-              className={`calendar-day${disabled ? " disabled" : ""}${selected ? " selected" : ""}${inRange ? " in-range" : ""}`}
+              className={`calendar-day${disabled ? " disabled" : ""}${selected ? " selected" : ""}${inRange ? " in-range" : ""}${isToday ? " today" : ""}`}
               disabled={disabled}
               onClick={() => handleClick(d)}
             >

@@ -2622,3 +2622,7 @@ a {
 .calendar-day.in-range {
   background: #eee7dc;
 }
+.calendar-day.today {
+  border: 1px solid var(--ink);
+  font-weight: 700;
+}
