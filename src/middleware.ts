@@ -15,9 +15,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (session && pathname === "/login") {
-    return NextResponse.redirect(new URL("/meetings", request.url));
-  }
+  // 세션이 남아있어도 /login에 직접 들어오면 그대로 로그인 화면을 보여준다
+  // (URL로 처음 접속할 때 항상 로그인 화면부터 시작하도록 하기 위해 자동 우회를 없앰).
 
   return NextResponse.next();
 }
