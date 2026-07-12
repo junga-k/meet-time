@@ -227,7 +227,7 @@ a {
   display: flex;
   align-items: center;
   border: 1px solid var(--border-light);
-  background: #faf7f2;
+  background: #fff;
 }
 .search-icon {
   position: absolute;
