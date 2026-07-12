@@ -5,6 +5,7 @@ import { updateContactInfoAction } from "@/server/actions/auth";
 import { Avatar } from "@/components/ui/Avatar";
 import { LogoutButton } from "@/components/ui/LogoutButton";
 import { useToast } from "@/components/ui/Toast";
+import { formatMobilePhone, formatLandlinePhone } from "@/lib/phone";
 
 export function ProfileClient(props: {
   name: string;
@@ -114,7 +115,7 @@ export function ProfileClient(props: {
               <span className={`info-value${saved.extension ? "" : " empty"}`}>{display(saved.extension)}</span>
             </div>
             <div className="info-row">
-              <span className="info-label">메신저 ID</span>
+              <span className="info-label">사내메신저</span>
               <span className={`info-value${saved.messengerId ? "" : " empty"}`}>{display(saved.messengerId)}</span>
             </div>
           </div>
@@ -123,19 +124,34 @@ export function ProfileClient(props: {
             <div className="section-label">연락처</div>
             <div className="field-group">
               <label className="field-label">휴대폰번호</label>
-              <input className="field" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+              <input
+                className="field"
+                inputMode="numeric"
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: formatMobilePhone(e.target.value) }))}
+              />
             </div>
             <div className="field-group">
               <label className="field-label">
                 내선번호<span className="optional-mark">(선택)</span>
               </label>
-              <input className="field" value={form.extension} onChange={(e) => setForm((f) => ({ ...f, extension: e.target.value }))} />
+              <input
+                className="field"
+                inputMode="numeric"
+                value={form.extension}
+                onChange={(e) => setForm((f) => ({ ...f, extension: formatLandlinePhone(e.target.value) }))}
+              />
             </div>
             <div className="field-group">
               <label className="field-label">
-                메신저 ID<span className="optional-mark">(선택)</span>
+                사내메신저<span className="optional-mark">(선택)</span>
               </label>
-              <input className="field" value={form.messengerId} onChange={(e) => setForm((f) => ({ ...f, messengerId: e.target.value }))} />
+              <input
+                className="field"
+                value={form.messengerId}
+                onChange={(e) => setForm((f) => ({ ...f, messengerId: e.target.value }))}
+                placeholder="사내메신저 아이디를 입력해주세요"
+              />
             </div>
             {profileError && <div className="field-error" style={{ marginBottom: 12 }}>{profileError}</div>}
           </div>

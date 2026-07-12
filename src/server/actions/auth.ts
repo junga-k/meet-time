@@ -88,6 +88,7 @@ const profileSchema = z.object({
   phone: z.string().min(1, "휴대폰 번호를 입력해주세요."),
   extension: z.string().optional(),
   messengerId: z.string().optional(),
+  profileImageUrl: z.string().optional(),
 });
 
 export type ProfileInput = z.infer<typeof profileSchema>;
@@ -104,6 +105,7 @@ async function saveProfile(input: ProfileInput): Promise<{ ok: true } | { ok: fa
       phone: parsed.data.phone,
       extension: parsed.data.extension || null,
       messengerId: parsed.data.messengerId || null,
+      ...(parsed.data.profileImageUrl ? { profileImageUrl: parsed.data.profileImageUrl } : {}),
     },
   });
   return { ok: true };
