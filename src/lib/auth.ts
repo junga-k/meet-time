@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
@@ -9,6 +10,7 @@ import {
   signSessionToken,
   verifySessionToken,
 } from "@/lib/session";
+import { DEMO_ORGANIZER_EMAIL, ensureDemoAccountFresh } from "@/server/demoSeed";
 
 export { SESSION_COOKIE_NAME };
 
@@ -42,11 +44,21 @@ export async function getCurrentUserId(): Promise<string | null> {
   return session?.userId ?? null;
 }
 
-export async function getCurrentUser() {
+/**
+ * cache()로 감싸 같은 요청 내 여러 호출((app)/layout.tsx + 각 page.tsx 등)이 한 번만
+ * 실행되도록 한다 — 데모 계정 유휴 체크(ensureDemoAccountFresh)가 요청당 한 번만 돌아야
+ * lastActiveAt 갱신/리셋 판단이 꼬이지 않는다.
+ */
+export const getCurrentUser = cache(async () => {
   const userId = await getCurrentUserId();
   if (!userId) return null;
-  return prisma.user.findUnique({ where: { id: userId } });
-}
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return null;
+  if (user.email === DEMO_ORGANIZER_EMAIL) {
+    return ensureDemoAccountFresh(user);
+  }
+  return user;
+});
 
 /** 로그인 필수 화면에서 사용 — 세션이 없으면 /login으로 리다이렉트 */
 export async function requireCurrentUser() {

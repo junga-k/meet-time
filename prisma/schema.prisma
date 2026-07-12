@@ -30,6 +30,11 @@ model User {
   directorySyncSource  String?
   directorySyncedAt    DateTime?
   onboardingSeenAt     DateTime?
+  // db_model_mvp.md 원 스펙엔 없는 필드. 데모 계정(kim.minjun@company.com)이 여러 리뷰어에게
+  // 실제 DB row를 공유시키는 구조라, 일정 시간(10분) 이상 조용하면 다음 방문자가 자동으로
+  // 초기화된 상태를 보도록 유휴 시간을 추적하는 용도로 추가함(src/server/demoSeed.ts 참고).
+  // 데모 계정 외에는 갱신되지 않는다.
+  lastActiveAt         DateTime?
   createdAt            DateTime  @default(now())
 
   organizedMeetings    Meeting[]            @relation("organizer")
