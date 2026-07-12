@@ -197,7 +197,7 @@ export async function confirmMeetingSlot(meetingId: string, slotId: string) {
 
   const requiredModes = participants
     .filter((p) => p.role === "필수" || p.role === "주최자")
-    .map((p) => (p.attendanceMode as AttendanceMode | null) ?? "무관");
+    .map((p) => (p.attendanceMode as AttendanceMode | null) ?? "대면");
   const mode = computeMeetingMode(requiredModes);
 
   await prisma.meeting.update({

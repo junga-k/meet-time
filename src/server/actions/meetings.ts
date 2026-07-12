@@ -105,7 +105,7 @@ export async function progressMeetingStage(meetingId: string, options: { force?:
     if (!options.force && !allDone) return { advanced: false };
 
     await shortlistTopSlots(meetingId);
-    const mode = computeMeetingMode(requiredParticipants.map((p) => (p.attendanceMode as AttendanceMode | null) ?? "무관"));
+    const mode = computeMeetingMode(requiredParticipants.map((p) => (p.attendanceMode as AttendanceMode | null) ?? "대면"));
     await prisma.meeting.update({ where: { id: meetingId }, data: { mode, stage: "선택확인중" } });
 
     const optionalParticipants = await prisma.participant.findMany({ where: { meetingId, role: "선택" } });

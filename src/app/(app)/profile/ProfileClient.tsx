@@ -20,9 +20,6 @@ export function ProfileClient(props: {
   const { showToast } = useToast();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
-    department: props.department ?? "",
-    rank: props.rank ?? "",
-    position: props.position ?? "",
     phone: props.phone ?? "",
     extension: props.extension ?? "",
     messengerId: props.messengerId ?? "",
@@ -88,79 +85,60 @@ export function ProfileClient(props: {
           </div>
         </div>
 
+        {/* 부서·직위·직책은 회사 디렉토리(SSO/HRIS) 동기화 값이라 수정 모드에서도 항상 읽기 전용 */}
+        <div className="info-section">
+          <div className="section-label">소속</div>
+          <div className="info-row">
+            <span className="info-label">부서</span>
+            <span className={`info-value${props.department ? "" : " empty"}`}>{display(props.department ?? "")}</span>
+          </div>
+          <div className="info-row">
+            <span className="info-label">직위</span>
+            <span className={`info-value${props.rank ? "" : " empty"}`}>{display(props.rank ?? "")}</span>
+          </div>
+          <div className="info-row">
+            <span className="info-label">직책</span>
+            <span className={`info-value${props.position ? "" : " empty"}`}>{display(props.position ?? "")}</span>
+          </div>
+        </div>
+
         {!editing ? (
-          <>
-            <div className="info-section">
-              <div className="section-label">소속</div>
-              <div className="info-row">
-                <span className="info-label">부서</span>
-                <span className={`info-value${saved.department ? "" : " empty"}`}>{display(saved.department)}</span>
-              </div>
-              <div className="info-row">
-                <span className="info-label">직위</span>
-                <span className={`info-value${saved.rank ? "" : " empty"}`}>{display(saved.rank)}</span>
-              </div>
-              <div className="info-row">
-                <span className="info-label">직책</span>
-                <span className={`info-value${saved.position ? "" : " empty"}`}>{display(saved.position)}</span>
-              </div>
+          <div className="info-section">
+            <div className="section-label">연락처</div>
+            <div className="info-row">
+              <span className="info-label">휴대폰</span>
+              <span className={`info-value${saved.phone ? "" : " empty"}`}>{display(saved.phone)}</span>
             </div>
-            <div className="info-section">
-              <div className="section-label">연락처</div>
-              <div className="info-row">
-                <span className="info-label">휴대폰</span>
-                <span className={`info-value${saved.phone ? "" : " empty"}`}>{display(saved.phone)}</span>
-              </div>
-              <div className="info-row">
-                <span className="info-label">내선번호</span>
-                <span className={`info-value${saved.extension ? "" : " empty"}`}>{display(saved.extension)}</span>
-              </div>
-              <div className="info-row">
-                <span className="info-label">메신저 ID</span>
-                <span className={`info-value${saved.messengerId ? "" : " empty"}`}>{display(saved.messengerId)}</span>
-              </div>
+            <div className="info-row">
+              <span className="info-label">내선번호</span>
+              <span className={`info-value${saved.extension ? "" : " empty"}`}>{display(saved.extension)}</span>
             </div>
-          </>
+            <div className="info-row">
+              <span className="info-label">메신저 ID</span>
+              <span className={`info-value${saved.messengerId ? "" : " empty"}`}>{display(saved.messengerId)}</span>
+            </div>
+          </div>
         ) : (
-          <>
-            <div className="info-section">
-              <div className="section-label">소속</div>
-              <div className="field-group">
-                <label className="field-label">부서</label>
-                <input className="field" value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} />
-              </div>
-              <div className="field-group">
-                <label className="field-label">직위</label>
-                <input className="field" value={form.rank} onChange={(e) => setForm((f) => ({ ...f, rank: e.target.value }))} />
-              </div>
-              <div className="field-group">
-                <label className="field-label">
-                  직책<span className="optional-mark">(선택)</span>
-                </label>
-                <input className="field" value={form.position} onChange={(e) => setForm((f) => ({ ...f, position: e.target.value }))} />
-              </div>
+          <div className="info-section">
+            <div className="section-label">연락처</div>
+            <div className="field-group">
+              <label className="field-label">휴대폰번호</label>
+              <input className="field" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
             </div>
-            <div className="info-section">
-              <div className="section-label">연락처</div>
-              <div className="field-group">
-                <label className="field-label">휴대폰번호</label>
-                <input className="field" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
-              </div>
-              <div className="field-group">
-                <label className="field-label">
-                  내선번호<span className="optional-mark">(선택)</span>
-                </label>
-                <input className="field" value={form.extension} onChange={(e) => setForm((f) => ({ ...f, extension: e.target.value }))} />
-              </div>
-              <div className="field-group">
-                <label className="field-label">
-                  메신저 ID<span className="optional-mark">(선택)</span>
-                </label>
-                <input className="field" value={form.messengerId} onChange={(e) => setForm((f) => ({ ...f, messengerId: e.target.value }))} />
-              </div>
+            <div className="field-group">
+              <label className="field-label">
+                내선번호<span className="optional-mark">(선택)</span>
+              </label>
+              <input className="field" value={form.extension} onChange={(e) => setForm((f) => ({ ...f, extension: e.target.value }))} />
+            </div>
+            <div className="field-group">
+              <label className="field-label">
+                메신저 ID<span className="optional-mark">(선택)</span>
+              </label>
+              <input className="field" value={form.messengerId} onChange={(e) => setForm((f) => ({ ...f, messengerId: e.target.value }))} />
             </div>
             {profileError && <div className="field-error" style={{ marginBottom: 12 }}>{profileError}</div>}
-          </>
+          </div>
         )}
 
         <div style={{ marginTop: 32 }}>

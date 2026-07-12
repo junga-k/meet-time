@@ -3,11 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { loginAction, demoLoginAction } from "@/server/actions/auth";
-import { useToast } from "@/components/ui/Toast";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { showToast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -21,9 +19,6 @@ export default function LoginPage() {
       if (!result.ok) {
         setError(result.error);
         return;
-      }
-      if (result.isTempPassword) {
-        showToast("임시 비밀번호를 사용 중이에요 — 내 정보에서 변경해주세요");
       }
       router.push(result.redirectTo);
     });
@@ -133,9 +128,7 @@ export default function LoginPage() {
       <div style={{ fontSize: 10.5, color: "var(--muted)", lineHeight: 1.6, marginTop: 28, padding: "0 8px" }}>
         계정은 사내 SSO 등록 이메일로 미리 발급되어 있어요.
         <br />
-        최초 로그인은 임시 비밀번호(1111)로 진행하고,
-        <br />
-        이후 내 정보에서 비밀번호를 변경할 수 있어요.
+        최초 로그인은 임시 비밀번호(1111)로 진행해주세요.
         <br />
         비밀번호 없이 바로 둘러보려면 위 &ldquo;데모버전으로 체험하기&rdquo;를 눌러주세요.
       </div>

@@ -83,7 +83,7 @@ model Participant {
   delegateUser       User?     @relation("delegateUser", fields: [delegateUserId], references: [id])
   role               String
   confirmationStatus String    @default("미확인")
-  attendanceMode     String?
+  attendanceMode     String?   @default("대면")
   respondedAt        DateTime?
   declineReason      String?
   // db_model_mvp.md 원 스펙엔 없는 필드. 화면1의 "재확인 대기"(amber) 배지가 "확정됐지만

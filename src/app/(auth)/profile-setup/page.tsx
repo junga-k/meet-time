@@ -21,7 +21,9 @@ export default async function ProfileSetupPage() {
           <span className="readonly-tag">계정 연동됨</span>
         </div>
         <div className="hint" style={{ marginBottom: 32 }}>
-          이 정보는 나중에 &quot;내 정보&quot; 화면에서 언제든 수정할 수 있어요
+          부서·직위·직책은 회사 디렉토리 정보를 자동으로 반영해요.
+          <br />
+          자세한 내용은 &quot;내 정보&quot; 화면에서 확인할 수 있어요
         </div>
 
         <ProfileSetupForm name={user.name} profileImageUrl={user.profileImageUrl} />

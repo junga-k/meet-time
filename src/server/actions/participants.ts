@@ -3,9 +3,10 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireCurrentUser } from "@/lib/auth";
-import { advanceRescheduleCount, RescheduleCapReachedError } from "@/lib/scheduling";
+import { advanceRescheduleCount, RescheduleCapReachedError, computeMeetingMode } from "@/lib/scheduling";
 import { createNotification } from "@/lib/notifications";
 import type { ActionResult } from "@/server/actions/meetings";
+import type { AttendanceMode } from "@/lib/enums";
 
 async function getMyParticipant(meetingId: string) {
   const user = await requireCurrentUser();
@@ -23,6 +24,25 @@ export async function reconfirmOnlineAction(meetingId: string): Promise<ActionRe
     where: { id: participant.id },
     data: { attendanceMode: "온라인", reconfirmedAt: new Date() },
   });
+
+  const isRequired = participant.role === "필수" || participant.role === "주최자";
+  if (isRequired) {
+    const meeting = await prisma.meeting.findUniqueOrThrow({ where: { id: meetingId } });
+    const requiredParticipants = await prisma.participant.findMany({
+      where: { meetingId, role: { in: ["필수", "주최자"] } },
+    });
+    const newMode = computeMeetingMode(
+      requiredParticipants.map((p) => (p.id === participant.id ? "온라인" : (p.attendanceMode as AttendanceMode | null) ?? "대면"))
+    );
+    if (newMode !== meeting.mode) {
+      const videoLink =
+        (newMode === "온라인" || newMode === "하이브리드") && !meeting.videoLink
+          ? `https://meet.example.com/${meetingId}`
+          : meeting.videoLink;
+      await prisma.meeting.update({ where: { id: meetingId }, data: { mode: newMode, videoLink } });
+    }
+  }
+
   return { ok: true, data: undefined };
 }
 

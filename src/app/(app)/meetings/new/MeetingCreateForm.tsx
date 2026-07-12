@@ -261,7 +261,7 @@ export function MeetingCreateForm({ candidates }: { candidates: Candidate[] }) {
       <button type="button" className="btn btn-primary" disabled={!canSubmit} onClick={() => setConfirmOpen(true)}>
         회의 만들기
       </button>
-      {!canSubmit && selectedIds.length === 0 && <div className="hint" style={{ color: "#a32d2d", marginTop: 6 }}>참석자를 1명 이상 추가해 주세요.</div>}
+      {!canSubmit && selectedIds.length === 0 && <div className="hint" style={{ color: "var(--accent-red)", marginTop: 6 }}>참석자를 1명 이상 추가해 주세요.</div>}
 
       {showOrgModal && (
         <div className="org-modal">

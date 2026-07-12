@@ -2,12 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { upsertSlotResponse, setAttendanceMode, submitResponseComplete } from "@/server/actions/slots";
-import { AttendanceModeSelector } from "@/components/meetings/AttendanceModeSelector";
+import { upsertSlotResponse, submitResponseComplete } from "@/server/actions/slots";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { SubHeader } from "@/components/ui/SubHeader";
 import { useToast } from "@/components/ui/Toast";
-import type { AttendanceMode, SlotResponseStatus } from "@/lib/enums";
+import type { SlotResponseStatus } from "@/lib/enums";
 
 type Slot = { id: string; startTime: Date; endTime: Date; myStatus: SlotResponseStatus };
 
@@ -29,7 +28,6 @@ export function RespondClient(props: {
   requiredResponseDeadline: Date;
   isEditable: boolean;
   slots: Slot[];
-  initialAttendanceMode: AttendanceMode | null;
   alreadyResponded: boolean;
   userName: string;
   userDepartment: string | null;
@@ -41,7 +39,6 @@ export function RespondClient(props: {
   const [statuses, setStatuses] = useState<Record<string, SlotResponseStatus>>(
     Object.fromEntries(props.slots.map((s) => [s.id, s.myStatus]))
   );
-  const [attendanceMode, setAttendanceModeState] = useState<AttendanceMode | null>(props.initialAttendanceMode);
   const [responded, setResponded] = useState(props.alreadyResponded);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
@@ -67,15 +64,6 @@ export function RespondClient(props: {
     setStatuses((prev) => ({ ...prev, [slot.id]: next }));
     const result = await upsertSlotResponse(props.meetingId, slot.id, next);
     if (result.ok) showToast("✓ 저장됨");
-  }
-
-  async function handleAttendanceModeChange(mode: AttendanceMode) {
-    if (!props.isEditable) return;
-    setAttendanceModeState(mode);
-    const result = await setAttendanceMode(props.meetingId, mode);
-    if (result.ok && result.data.modeRecomputed) {
-      showToast("참석형태가 변경되어 회의 형태가 다시 계산돼요");
-    }
   }
 
   function handleComplete() {
@@ -183,10 +171,6 @@ export function RespondClient(props: {
         </div>
       </div>
 
-      <div style={{ padding: "12px 16px 0" }}>
-        <AttendanceModeSelector value={attendanceMode} onChange={handleAttendanceModeChange} disabled={!props.isEditable} />
-      </div>
-
       <div className="footer">
         <div className="warning-banner">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginTop: 1, flexShrink: 0, color: "var(--muted)" }}>
@@ -201,7 +185,7 @@ export function RespondClient(props: {
         <button
           type="button"
           className="btn btn-primary"
-          disabled={!props.isEditable || !attendanceMode}
+          disabled={!props.isEditable}
           onClick={() => setConfirmOpen(true)}
         >
           응답 완료
@@ -211,7 +195,7 @@ export function RespondClient(props: {
       <ConfirmDialog
         open={confirmOpen}
         title="응답을 완료하시겠습니까?"
-        message={`선택한 참석 형태: ${attendanceMode}\n이후 변경은 가능하지만, 회의가 이미 확정된 뒤에는 다른 참석자에게 영향을 줄 수 있습니다.\n미표시 슬롯은 가능 처리됩니다.`}
+        message={"이후 변경은 가능하지만, 회의가 이미 확정된 뒤에는 다른 참석자에게 영향을 줄 수 있습니다.\n미표시 슬롯은 가능 처리됩니다."}
         pending={isPending}
         onConfirm={handleComplete}
         onCancel={() => setConfirmOpen(false)}

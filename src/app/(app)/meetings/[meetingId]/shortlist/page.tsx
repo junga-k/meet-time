@@ -47,7 +47,6 @@ export default async function ShortlistPage({ params }: { params: { meetingId: s
       isEditable={meeting.stage === "선택확인중"}
       slots={slots}
       computedMode={meeting.mode as "온라인" | "오프라인" | "하이브리드" | null}
-      initialAttendanceMode={participant.attendanceMode as "대면" | "온라인" | "무관" | null}
       alreadyResponded={Boolean(participant.respondedAt)}
       userName={user.name}
       userDepartment={user.department}

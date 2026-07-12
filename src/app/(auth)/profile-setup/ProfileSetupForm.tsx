@@ -8,9 +8,6 @@ import { Avatar } from "@/components/ui/Avatar";
 export function ProfileSetupForm({ name, profileImageUrl }: { name: string; profileImageUrl: string | null }) {
   const router = useRouter();
   const [form, setForm] = useState({
-    department: "",
-    rank: "",
-    position: "",
     phone: "",
     extension: "",
     messengerId: "",
@@ -18,7 +15,7 @@ export function ProfileSetupForm({ name, profileImageUrl }: { name: string; prof
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const canSubmit = form.department.trim() && form.rank.trim() && form.phone.trim();
+  const canSubmit = form.phone.trim();
 
   function update(key: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -52,28 +49,6 @@ export function ProfileSetupForm({ name, profileImageUrl }: { name: string; prof
             </button>
           </div>
           <div className="hint">계정 사진이 없으면 이름 첫 글자로 표시돼요.</div>
-        </div>
-      </div>
-
-      <div className="section">
-        <div className="section-label">소속 정보</div>
-        <div className="field-group">
-          <label className="field-label" htmlFor="department">
-            부서<span className="required-mark">(필수)</span>
-          </label>
-          <input id="department" className="field" value={form.department} onChange={update("department")} placeholder="예: 기획팀" required />
-        </div>
-        <div className="field-group">
-          <label className="field-label" htmlFor="rank">
-            직급<span className="required-mark">(필수)</span>
-          </label>
-          <input id="rank" className="field" value={form.rank} onChange={update("rank")} placeholder="예: 대리" required />
-        </div>
-        <div className="field-group">
-          <label className="field-label" htmlFor="position">
-            직책<span className="optional-mark">(선택)</span>
-          </label>
-          <input id="position" className="field" value={form.position} onChange={update("position")} placeholder="예: 팀장" />
         </div>
       </div>
 

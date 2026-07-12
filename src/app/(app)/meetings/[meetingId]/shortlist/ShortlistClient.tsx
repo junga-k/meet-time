@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { upsertSlotResponse, setAttendanceMode, submitResponseComplete } from "@/server/actions/slots";
-import { AttendanceModeSelector } from "@/components/meetings/AttendanceModeSelector";
+import { upsertSlotResponse, submitResponseComplete } from "@/server/actions/slots";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { SubHeader } from "@/components/ui/SubHeader";
 import { useToast } from "@/components/ui/Toast";
 import { formatMeetingDate, formatTimeRange } from "@/lib/dates";
-import type { AttendanceMode, SlotResponseStatus } from "@/lib/enums";
+import type { SlotResponseStatus } from "@/lib/enums";
 
 type Slot = { id: string; startTime: Date; endTime: Date; myStatus: SlotResponseStatus | null };
 
@@ -19,7 +18,6 @@ export function ShortlistClient(props: {
   isEditable: boolean;
   slots: Slot[];
   computedMode: "온라인" | "오프라인" | "하이브리드" | null;
-  initialAttendanceMode: AttendanceMode | null;
   alreadyResponded: boolean;
   userName: string;
   userDepartment: string | null;
@@ -31,7 +29,6 @@ export function ShortlistClient(props: {
   const [statuses, setStatuses] = useState<Record<string, SlotResponseStatus | null>>(
     Object.fromEntries(props.slots.map((s) => [s.id, s.myStatus]))
   );
-  const [attendanceMode, setAttendanceModeState] = useState<AttendanceMode | null>(props.initialAttendanceMode);
   const [responded, setResponded] = useState(props.alreadyResponded);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
@@ -40,12 +37,6 @@ export function ShortlistClient(props: {
     if (!props.isEditable) return;
     setStatuses((prev) => ({ ...prev, [slotId]: status }));
     await upsertSlotResponse(props.meetingId, slotId, status);
-  }
-
-  async function handleAttendanceModeChange(mode: AttendanceMode) {
-    if (!props.isEditable) return;
-    setAttendanceModeState(mode);
-    await setAttendanceMode(props.meetingId, mode);
   }
 
   function handleComplete() {
@@ -84,10 +75,6 @@ export function ShortlistClient(props: {
         }}
       />
       <div style={{ padding: "10px 16px 0", fontSize: 18, fontWeight: 700, lineHeight: 1.3 }}>{props.meetingTitle}</div>
-
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-light)" }}>
-        <AttendanceModeSelector value={attendanceMode} onChange={handleAttendanceModeChange} disabled={!props.isEditable} />
-      </div>
 
       {props.computedMode && (
         <div className="mode-info">
@@ -143,7 +130,7 @@ export function ShortlistClient(props: {
         <button
           type="button"
           className="btn btn-primary"
-          disabled={!props.isEditable || !attendanceMode || !allAnswered}
+          disabled={!props.isEditable || !allAnswered}
           onClick={() => setConfirmOpen(true)}
         >
           응답 완료

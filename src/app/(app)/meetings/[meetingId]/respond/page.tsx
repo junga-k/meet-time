@@ -33,7 +33,6 @@ export default async function RespondPage({ params }: { params: { meetingId: str
       requiredResponseDeadline={meeting.requiredResponseDeadline}
       isEditable={meeting.stage === "필수응답중"}
       slots={slots}
-      initialAttendanceMode={participant.attendanceMode as "대면" | "온라인" | "무관" | null}
       alreadyResponded={Boolean(participant.respondedAt)}
       userName={user.name}
       userDepartment={user.department}

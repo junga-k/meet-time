@@ -34,7 +34,7 @@ export function ReconfirmClient(props: {
   };
   const router = useRouter();
   const { showToast } = useToast();
-  const [mode, setMode] = useState<"idle" | "delegate" | "decline">("idle");
+  const [mode, setMode] = useState<"idle" | "declineCheck" | "delegate" | "decline">("idle");
   const [delegateId, setDelegateId] = useState<string | null>(null);
   const [declineReason, setDeclineReason] = useState("");
   const [isPending, setIsPending] = useState(false);
@@ -130,6 +130,26 @@ export function ReconfirmClient(props: {
           </div>
         </div>
 
+        {mode === "declineCheck" && (
+          <div className="section">
+            <div className="change-notice">
+              <div className="change-notice-title">잠깐, 확인해주세요</div>
+              이 시간에 온라인으로는 참석 가능하신가요? 온라인 참석도 어려운 경우에만 불참으로 처리해주세요.
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button type="button" className="btn btn-secondary" disabled={isPending} onClick={() => setMode("decline")}>
+                아니오, 불참 처리
+              </button>
+              <button type="button" className="btn btn-primary" disabled={isPending} onClick={handleOnline}>
+                네, 온라인으로 참석
+              </button>
+            </div>
+            <button type="button" className="footer-link" disabled={isPending} onClick={() => setMode("idle")} style={{ display: "block", margin: "10px auto 0" }}>
+              취소
+            </button>
+          </div>
+        )}
+
         {mode === "delegate" && (
           <div className="section">
             <div className="section-title">대리 참석자 선택</div>
@@ -195,7 +215,7 @@ export function ReconfirmClient(props: {
           <button type="button" className="btn btn-secondary" disabled={isPending} onClick={() => setMode("delegate")}>
             대리 참석자 지정
           </button>
-          <button type="button" className="footer-link" disabled={isPending} onClick={() => setMode("decline")} style={{ alignSelf: "center", marginTop: 2 }}>
+          <button type="button" className="footer-link" disabled={isPending} onClick={() => setMode("declineCheck")} style={{ alignSelf: "center", marginTop: 2 }}>
             불참 통보
           </button>
         </div>

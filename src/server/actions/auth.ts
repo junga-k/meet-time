@@ -53,12 +53,21 @@ export async function loginAction(input: { email: string; password: string }): P
   };
 }
 
-/** 로그인 화면 "데모버전으로 체험하기" — 비밀번호 없이 데모 계정으로 바로 로그인 */
+/**
+ * 로그인 화면 "데모버전으로 체험하기" — 비밀번호 없이 데모 계정으로 바로 로그인.
+ * 로그인→프로필설정→온보딩→내회의 4단계 흐름을 매번 그대로 보여주기 위해
+ * phone/onboardingSeenAt을 매 데모 로그인마다 초기화한다(데모 전용 계정이라 부작용 없음).
+ */
 export async function demoLoginAction(): Promise<ActionResult> {
-  const user = await prisma.user.findUnique({ where: { email: DEMO_ACCOUNT_EMAIL } });
-  if (!user) {
+  const existing = await prisma.user.findUnique({ where: { email: DEMO_ACCOUNT_EMAIL } });
+  if (!existing) {
     return { ok: false, error: "데모 계정을 찾을 수 없어요. 시드 데이터를 확인해주세요." };
   }
+
+  const user = await prisma.user.update({
+    where: { id: existing.id },
+    data: { phone: null, onboardingSeenAt: null },
+  });
 
   await createSession(user.id);
 
@@ -70,13 +79,15 @@ export async function logoutAction() {
   redirect("/login");
 }
 
+/**
+ * 부서/직위/직책은 회사 디렉토리(HRIS/SSO)에서 동기화되는 값이라는 설계 전제라 이 폼으로 입력받지 않음
+ * (와이어프레임 wireframe_13_profile_setup_1.html:182, wireframe_15_my_info_1.html:183) — "내 정보"·"프로필 설정"
+ * 어느 화면에서도 항상 읽기 전용이고, 값이 틀리면 사내 HR/IT 시스템에서 갱신해야 함. 연락처만 사용자가 직접 입력.
+ */
 const profileSchema = z.object({
   phone: z.string().min(1, "휴대폰 번호를 입력해주세요."),
   extension: z.string().optional(),
   messengerId: z.string().optional(),
-  department: z.string().min(1, "부서를 입력해주세요."),
-  rank: z.string().min(1, "직급을 입력해주세요."),
-  position: z.string().optional(),
 });
 
 export type ProfileInput = z.infer<typeof profileSchema>;
@@ -93,9 +104,6 @@ async function saveProfile(input: ProfileInput): Promise<{ ok: true } | { ok: fa
       phone: parsed.data.phone,
       extension: parsed.data.extension || null,
       messengerId: parsed.data.messengerId || null,
-      department: parsed.data.department,
-      rank: parsed.data.rank,
-      position: parsed.data.position || null,
     },
   });
   return { ok: true };
