@@ -5,6 +5,8 @@ import { generateTimeSlotInputs } from "../src/lib/scheduling";
 
 const TEMP_PASSWORD = "1111";
 
+// 실제 회사 조직도처럼 보이도록 6개 부서·14명 구성(기존 6명은 그대로 유지 — 데모 회의 시딩이
+// 이 이메일들을 그대로 참조하므로 순서/값을 바꾸지 않고 뒤에 추가만 함).
 const USERS = [
   { name: "김민준", email: "kim.minjun@company.com", department: "기획팀", rank: "과장", position: "팀장" },
   { name: "박서연", email: "park.seoyeon@company.com", department: "기획팀", rank: "대리", position: null },
@@ -12,6 +14,14 @@ const USERS = [
   { name: "최유나", email: "choi.yuna@company.com", department: "개발팀", rank: "대리", position: null },
   { name: "정다은", email: "jeong.daeun@company.com", department: "디자인팀", rank: "사원", position: null },
   { name: "한소희", email: "han.sohee@company.com", department: "마케팅팀", rank: "사원", position: null },
+  { name: "조현우", email: "jo.hyunwoo@company.com", department: "기획팀", rank: "사원", position: null },
+  { name: "강민석", email: "kang.minseok@company.com", department: "개발팀", rank: "차장", position: "팀장" },
+  { name: "오유진", email: "oh.yujin@company.com", department: "개발팀", rank: "사원", position: null },
+  { name: "배지훈", email: "bae.jihoon@company.com", department: "디자인팀", rank: "대리", position: null },
+  { name: "윤서준", email: "yoon.seojun@company.com", department: "마케팅팀", rank: "과장", position: null },
+  { name: "임서연", email: "lim.seoyeon@company.com", department: "영업팀", rank: "과장", position: "팀장" },
+  { name: "서준혁", email: "seo.junhyuk@company.com", department: "영업팀", rank: "사원", position: null },
+  { name: "김도윤", email: "kim.doyun@company.com", department: "인사팀", rank: "대리", position: null },
 ] as const;
 
 const ROOMS = [

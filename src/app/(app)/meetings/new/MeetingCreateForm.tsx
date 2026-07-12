@@ -23,6 +23,16 @@ function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
+// 조직도 내 부서별 인원 정렬 기준 — 직위(연차 높은 순) → 이름 가나다순. 목록에 없는 직위는 맨 뒤로.
+const RANK_ORDER = ["부장", "차장", "과장", "대리", "주임", "사원"];
+function compareByRankThenName(a: Candidate, b: Candidate) {
+  const ai = a.rank ? RANK_ORDER.indexOf(a.rank) : -1;
+  const bi = b.rank ? RANK_ORDER.indexOf(b.rank) : -1;
+  const rankDiff = (ai === -1 ? RANK_ORDER.length : ai) - (bi === -1 ? RANK_ORDER.length : bi);
+  if (rankDiff !== 0) return rankDiff;
+  return a.name.localeCompare(b.name, "ko");
+}
+
 export function MeetingCreateForm({ candidates }: { candidates: Candidate[] }) {
   const router = useRouter();
   const minStartDate = useMemo(() => addBusinessDays(new Date(), 3), []);
@@ -30,6 +40,7 @@ export function MeetingCreateForm({ candidates }: { candidates: Candidate[] }) {
   const [title, setTitle] = useState("");
   const [search, setSearch] = useState("");
   const [showOrgModal, setShowOrgModal] = useState(false);
+  const [modalSearch, setModalSearch] = useState("");
   const [expandedDept, setExpandedDept] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<string, AssignableRole | null>>({});
   const [range, setRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
@@ -49,8 +60,17 @@ export function MeetingCreateForm({ candidates }: { candidates: Candidate[] }) {
       if (!map.has(dept)) map.set(dept, []);
       map.get(dept)!.push(c);
     }
+    Array.from(map.values()).forEach((users) => users.sort(compareByRankThenName));
     return map;
   }, [candidates]);
+
+  const modalDepartments = useMemo(() => {
+    const q = modalSearch.trim().toLowerCase();
+    if (!q) return Array.from(byDepartment.entries());
+    return Array.from(byDepartment.entries())
+      .map(([dept, users]) => [dept, users.filter((c) => c.name.toLowerCase().includes(q))] as [string, Candidate[]])
+      .filter(([, users]) => users.length > 0);
+  }, [byDepartment, modalSearch]);
 
   const searchResults = useMemo(() => {
     if (!search.trim()) return [];
@@ -138,7 +158,15 @@ export function MeetingCreateForm({ candidates }: { candidates: Candidate[] }) {
               </div>
             )}
           </div>
-          <button type="button" className="org-icon-btn" title="부서 조직도에서 찾기" onClick={() => setShowOrgModal(true)}>
+          <button
+            type="button"
+            className="org-icon-btn"
+            title="부서 조직도에서 찾기"
+            onClick={() => {
+              setModalSearch("");
+              setShowOrgModal(true);
+            }}
+          >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <rect x="9" y="3" width="6" height="4" rx="0.5" />
               <rect x="3" y="16" width="6" height="4" rx="0.5" />
@@ -273,44 +301,64 @@ export function MeetingCreateForm({ candidates }: { candidates: Candidate[] }) {
               </svg>
             </button>
           </div>
+          <div className="org-modal-search">
+            <div className="search-input-wrap">
+              <span className="search-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M21 21l-4.3-4.3" />
+                </svg>
+              </span>
+              <input className="search-input" placeholder="이름으로 검색" value={modalSearch} onChange={(e) => setModalSearch(e.target.value)} />
+            </div>
+          </div>
           <div className="org-modal-body">
-            {Array.from(byDepartment.entries()).map(([dept, users]) => (
-              <div key={dept} className="org-dept">
-                <button type="button" className="org-dept-header" onClick={() => setExpandedDept(expandedDept === dept ? null : dept)}>
-                  <span style={{ fontSize: 13, color: "var(--muted)", transform: expandedDept === dept ? "rotate(90deg)" : "none", display: "inline-block" }}>
-                    ›
-                  </span>
-                  <span className="dept-name">{dept}</span>
-                  <span className="dept-count">{users.length}명</span>
-                </button>
-                {expandedDept === dept && (
-                  <div>
-                    {users.map((c) => {
-                      const added = selected[c.id] !== undefined;
-                      return (
-                        <div key={c.id} className="org-member">
-                          <Avatar name={c.name} profileImageUrl={c.profileImageUrl} size="sm" />
-                          <div className="member-info">
-                            <div className="member-name">{c.name}</div>
-                            <div className="member-role">
-                              {c.rank} {c.position}
+            {modalDepartments.length === 0 && <div className="hint" style={{ padding: "16px 2px" }}>검색 결과가 없어요.</div>}
+            {modalDepartments.map(([dept, users]) => {
+              const isExpanded = modalSearch.trim() ? true : expandedDept === dept;
+              return (
+                <div key={dept} className="org-dept">
+                  <button type="button" className="org-dept-header" onClick={() => setExpandedDept(expandedDept === dept ? null : dept)}>
+                    <span style={{ fontSize: 13, color: "var(--muted)", transform: isExpanded ? "rotate(90deg)" : "none", display: "inline-block" }}>
+                      ›
+                    </span>
+                    <span className="dept-name">{dept}</span>
+                    <span className="dept-count">{users.length}명</span>
+                  </button>
+                  {isExpanded && (
+                    <div>
+                      {users.map((c) => {
+                        const added = selected[c.id] !== undefined;
+                        return (
+                          <div key={c.id} className="org-member">
+                            <Avatar name={c.name} profileImageUrl={c.profileImageUrl} size="sm" />
+                            <div className="member-info">
+                              <div className="member-name">{c.name}</div>
+                              <div className="member-role">
+                                {c.rank} {c.position}
+                              </div>
                             </div>
+                            <button
+                              type="button"
+                              className={`add-btn${added ? " added" : ""}`}
+                              disabled={added}
+                              onClick={() => addCandidate(c)}
+                            >
+                              {added ? "✓" : "+"}
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            className={`add-btn${added ? " added" : ""}`}
-                            disabled={added}
-                            onClick={() => addCandidate(c)}
-                          >
-                            {added ? "✓" : "+"}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ))}
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="org-modal-footer">
+            <button type="button" className="btn btn-primary" onClick={() => setShowOrgModal(false)}>
+              저장 ({selectedIds.length}명 선택됨)
+            </button>
           </div>
         </div>
       )}

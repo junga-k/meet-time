@@ -13,7 +13,7 @@ export default async function NewMeetingPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-      <SubHeader title="회의 생성" />
+      <SubHeader title="새 회의 만들기" />
       <div className="screen-scroll">
         <MeetingCreateForm candidates={otherUsers} />
       </div>

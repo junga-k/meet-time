@@ -50,6 +50,14 @@ rm prisma/dev.db && npx prisma migrate dev && npm run seed
 | 최유나 | `choi.yuna@company.com` | `1111` | 개발팀 | 대리 | 선택 참석자 테스트용 |
 | 정다은 | `jeong.daeun@company.com` | `1111` | 디자인팀 | 사원 | 선택 참석자 테스트용 |
 | 한소희 | `han.sohee@company.com` | `1111` | 마케팅팀 | 사원 | 여유 인원 테스트용 |
+| 조현우 | `jo.hyunwoo@company.com` | `1111` | 기획팀 | 사원 | 조직도 인원 확충용 |
+| 강민석 | `kang.minseok@company.com` | `1111` | 개발팀 | 차장(팀장) | 조직도 인원 확충용 |
+| 오유진 | `oh.yujin@company.com` | `1111` | 개발팀 | 사원 | 조직도 인원 확충용 |
+| 배지훈 | `bae.jihoon@company.com` | `1111` | 디자인팀 | 대리 | 조직도 인원 확충용 |
+| 윤서준 | `yoon.seojun@company.com` | `1111` | 마케팅팀 | 과장 | 조직도 인원 확충용 |
+| 임서연 | `lim.seoyeon@company.com` | `1111` | 영업팀 | 과장(팀장) | 조직도 인원 확충용 |
+| 서준혁 | `seo.junhyuk@company.com` | `1111` | 영업팀 | 사원 | 조직도 인원 확충용 |
+| 김도윤 | `kim.doyun@company.com` | `1111` | 인사팀 | 대리 | 조직도 인원 확충용 |
 
 \* 시드 직후 기본값은 `1111`입니다. 이 저장소의 로컬 `prisma/dev.db`는 과거 브라우저 테스트 중 김민준 계정 비밀번호가 `5678`로 변경된 상태일 수 있습니다 — 직접 로그인 시 `1111`이 안 되면 `5678`도 시도해보거나, 위 "데모버전으로 체험하기" 버튼을 이용하세요(비밀번호와 무관하게 항상 동작). DB를 재시드하면 전 계정이 `1111`로 초기화됩니다.
 
