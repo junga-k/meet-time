@@ -26,6 +26,10 @@ export function resolveMeetingCardHref(vm: MeetingCardVM): string | null {
 
   if (vm.status === "확정") {
     if (isPendingReconfirm(vm)) return `/meetings/${vm.meetingId}/reconfirm`;
+    // 주최자는 회의 시작 전까지 조율상황(응답 현황·회의실/모드 자동처리 결과 등)을 보는 대시보드로,
+    // 시작 이후에는 참석자와 동일하게 회의 상세로 이동한다.
+    const notStarted = vm.confirmedStartTime ? vm.confirmedStartTime.getTime() > Date.now() : false;
+    if (vm.myRole === "주최자" && notStarted) return `/meetings/${vm.meetingId}/dashboard`;
     return `/meetings/${vm.meetingId}`;
   }
 
