@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>와이어프레임 — 온보딩(간단 사용법) 화면</title>
+<style>
+  :root {
+    --ink: #1a1a1a; --muted: #6b6b6b; --border: #1a1a1a; --border-light: #c9c9c9;
+    --page-bg: #e9e9e7; --card-bg: #ffffff; --accent-red: #c0392b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 16px; background: var(--page-bg);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    color: var(--ink); display: flex; flex-direction: column; align-items: center;
+  }
+  .frame-label { font-size: 12px; color: var(--muted); letter-spacing: 0.05em; margin-bottom: 10px; text-transform: uppercase; }
+  .app-card {
+    width: 100%; max-width: 390px; background: var(--card-bg);
+    border: 1.5px solid var(--border); height: 844px;
+    display: flex; flex-direction: column; position: relative; overflow: hidden;
+  }
+  .status-bar {
+    height: 24px; flex-shrink: 0; padding: 0 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border-light); font-size: 11px; font-weight: 700; color: var(--ink);
+  }
+  .status-icons { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+  .screen-content { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
+
+  .skip-row { display: flex; justify-content: flex-end; padding: 14px 16px 0; flex-shrink: 0; }
+  .skip-link { font-size: 12px; color: var(--muted); text-decoration: underline; cursor: pointer; }
+
+  .slides-wrap { flex: 1; position: relative; overflow: hidden; touch-action: pan-y; cursor: grab; user-select: none; }
+  .slides-wrap:active { cursor: grabbing; }
+  .slide {
+    position: absolute; inset: 0; padding: 20px 28px;
+    display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  }
+  .slide.active { display: flex; }
+  .slide-icon {
+    width: 68px; height: 68px; border: 1.5px solid var(--ink); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; margin-bottom: 24px;
+  }
+  .slide-title { font-size: 17px; font-weight: 700; margin-bottom: 10px; line-height: 1.4; }
+  .slide-body { font-size: 12.5px; color: var(--muted); line-height: 1.7; max-width: 280px; }
+
+  .dots-row { display: flex; justify-content: center; gap: 6px; padding: 14px 0; flex-shrink: 0; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border-light); cursor: pointer; }
+  .dot.active { background: var(--ink); width: 16px; border-radius: 4px; }
+
+  .footer { flex-shrink: 0; padding: 12px 16px 14px; background: #fafaf9; }
+  .next-btn {
+    width: 100%; background: var(--ink); color: #fff; border: none; padding: 12px;
+    font-size: 13.5px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+
+  .toast {
+    position: absolute; bottom: 78px; left: 50%; transform: translateX(-50%) translateY(8px);
+    background: var(--ink); color: #fff; font-size: 11.5px; font-weight: 600;
+    padding: 7px 16px; border-radius: 20px; opacity: 0; pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease; white-space: nowrap; z-index: 40;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .dev-notes {
+    width: 100%; max-width: 390px; margin-top: 24px;
+    border: 1px dashed var(--border); padding: 16px 18px;
+    font-size: 12.5px; line-height: 1.7; color: var(--ink); background: #fff;
+  }
+  .dev-notes h3 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .dev-notes code { background: #f0f0ee; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  .dev-notes ul { margin: 4px 0 12px; padding-left: 18px; }
+  .dev-notes ul:last-child { margin-bottom: 0; }
+  .dev-notes .warn { color: #8a4b00; }
+</style>
+</head>
+<body>
+
+<div class="frame-label">화면 15 · 온보딩(간단 사용법) — MVP (신규, 스플래시 대체)</div>
+
+<div class="app-card">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span class="status-icons">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19v-3M9 19v-6M14 19v-9M19 19V5"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5a15 15 0 0118 0"/><path d="M6.2 12a10.5 10.5 0 0111.6 0"/><path d="M9.5 15.5a5.8 5.8 0 015 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.2v3.6"/><rect x="4" y="9" width="10" height="6" fill="currentColor" stroke="none"/></svg>
+    </span>
+  </div>
+
+  <div class="screen-content">
+    <div class="skip-row"><span class="skip-link" id="skipLink">건너뛰기</span></div>
+
+    <div class="slides-wrap" id="slidesWrap">
+      <div class="slide active" data-i="0">
+        <div class="slide-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></div>
+        <div class="slide-title">복잡한 회의시간 정하기,<br>사람들 대신 자동으로 찾아드려요</div>
+        <div class="slide-body">참석자들의 가능한 시간과 참석 방식을 모으면,<br>모두에게 괜찮은 시간을 시스템이 알아서 찾아줘요.</div>
+      </div>
+      <div class="slide" data-i="1">
+        <div class="slide-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
+        <div class="slide-title">필수 참석자 먼저,<br>선택 참석자는 나중에</div>
+        <div class="slide-body">필수참석자가 지정될 경우<br>필수참석자에게 먼저 가능한 일정을 확인해요.<br>선택참석자는 추려진 후보 일정 중<br>부담없이 선택하면 돼요.</div>
+      </div>
+      <div class="slide" data-i="2">
+        <div class="slide-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20c0-4.14 3.36-7.5 7.5-7.5s7.5 3.36 7.5 7.5"/></svg></div>
+        <div class="slide-title">참석 방식을 골라주세요</div>
+        <div class="slide-body">참여 가능한 참석 형태를 선택하면,<br>회의 형태가 자동으로 정해져요.<br>그에 맞춰 회의실 예약까지 진행해요.</div>
+      </div>
+      <div class="slide" data-i="3">
+        <div class="slide-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10.5a6 6 0 1112 0c0 4.2 1.5 5.5 1.5 5.5h-15S6 14.7 6 10.5z"/><path d="M9.7 18.5a2.3 2.3 0 004.6 0"/></svg></div>
+        <div class="slide-title">준비됐어요!</div>
+        <div class="slide-body">회의 관련 사항은 알림으로 바로 알려드릴게요.<br>이제 첫 회의를 만들거나, 초대받은 회의에 응답해보세요.</div>
+      </div>
+    </div>
+
+    <div class="dots-row" id="dotsRow">
+      <span class="dot active" data-i="0"></span>
+      <span class="dot" data-i="1"></span>
+      <span class="dot" data-i="2"></span>
+      <span class="dot" data-i="3"></span>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="footer">
+      <button type="button" class="next-btn" id="nextBtn">다음</button>
+    </div>
+  </div>
+</div>
+
+<div class="dev-notes">
+  <h3>구현 노트 (Claude Code 참고용)</h3>
+  <ul>
+    <li>기존 스펙엔 없던 <strong>완전 신규 화면</strong> — 원래 검토 중이던 "로딩 스플래시"를 대체함. 최초 프로필 설정(화면 14) 완료 직후 <strong>딱 1회만</strong> 노출되고, 이후로는 다시 뜨지 않음(예: <code>USER</code>에 <code>onboarding_seen_at</code> 같은 플래그 추가 필요 — 현재 <code>db_model_mvp.md</code>엔 이 필드가 없어 스키마 반영 필요)</li>
+    <li>4장 구성 — ①핵심 가치("자동으로 찾아드려요") ②필수→선택 단계적 응답수집 흐름 ③참석형태 사전선택+모드자동계산+회의실자동예약 ④마무리(알림 안내). 전부 실제 화면 흐름 그대로를 요약한 것이라, 화면 3·5·6·12 등의 실제 문구/로직이 바뀌면 이 온보딩 문구도 같이 갱신 필요</li>
+    <li>"건너뛰기" 링크와 마지막 슬라이드의 "시작하기" 버튼(4번째 슬라이드에서 "다음" 버튼 라벨이 "시작하기"로 바뀜) 둘 다 결과적으로 같은 곳(내 회의 목록, 화면 1)으로 이동</li>
+    <li><strong>페이지 이동 방식</strong> — 점(dot) 인디케이터는 모양만으로는 클릭 가능해 보이지 않는다고 판단해 주된 상호작용에서 제외(눌러도 동작은 하지만 보너스 취급). 대신 (1) <strong>4초마다 자동으로 다음 페이지로 넘어가는 자동재생</strong>(마지막 페이지에서는 멈춤), (2) <strong>좌우 드래그/스와이프로 이전·다음 페이지 이동</strong>(Pointer Events 기반, 마우스 드래그와 터치 스와이프 모두 지원)을 기본 인터랙션으로 채택. 사용자가 "다음" 버튼을 누르거나 드래그/점 클릭 등 직접 조작을 하면 그 시점부터 자동재생은 멈춤(자동재생이 사용자가 읽고 있는 페이지를 강제로 넘기지 않도록)</li>
+    <li>드래그로 이전 페이지로 돌아가는 것은 가능하지만 "다음" 버튼은 항상 다음 페이지로만 이동(뒤로가기 버튼 없음) — 다시 보고 싶은 페이지가 있으면 드래그로만 되돌아갈 수 있음</li>
+    <li>이 와이어프레임은 단일 화면 목업이라 실제 페이지 전환 대신 <strong>토스트로 최종 이동을 표시</strong>함</li>
+  </ul>
+</div>
+
+<script>
+  const slides = document.querySelectorAll(".slide");
+  const dots = document.querySelectorAll(".dot");
+  const nextBtn = document.getElementById("nextBtn");
+  const slidesWrap = document.getElementById("slidesWrap");
+  let current = 0;
+  const AUTOPLAY_DELAY_MS = 4000;
+  const SWIPE_THRESHOLD_PX = 40;
+  let autoplayTimer = null;
+
+  function render() {
+    slides.forEach((s) => s.classList.toggle("active", Number(s.dataset.i) === current));
+    dots.forEach((d) => d.classList.toggle("active", Number(d.dataset.i) === current));
+    nextBtn.textContent = current === slides.length - 1 ? "시작하기" : "다음";
+  }
+
+  function goTo(idx) {
+    current = Math.max(0, Math.min(slides.length - 1, idx));
+    render();
+  }
+
+  // 일정 시간(4초)마다 자동으로 다음 페이지로 넘어감 — 마지막 페이지에 도달하면 멈춤
+  function startAutoplay() {
+    stopAutoplay();
+    autoplayTimer = setInterval(() => {
+      if (current < slides.length - 1) {
+        goTo(current + 1);
+      } else {
+        stopAutoplay();
+      }
+    }, AUTOPLAY_DELAY_MS);
+  }
+  function stopAutoplay() {
+    if (autoplayTimer) {
+      clearInterval(autoplayTimer);
+      autoplayTimer = null;
+    }
+  }
+
+  nextBtn.addEventListener("click", () => {
+    stopAutoplay(); // 사용자가 직접 조작하면 자동 재생은 멈춤
+    if (current < slides.length - 1) {
+      goTo(current + 1);
+    } else {
+      goToMain();
+    }
+  });
+
+  document.getElementById("skipLink").addEventListener("click", goToMain);
+
+  // 점(dot) 인디케이터는 현재 위치 표시가 주목적이라 클릭 인식이 잘 안 될 수 있음 —
+  // 그래도 눌렀을 때 해당 페이지로 이동하는 보너스 동작은 유지
+  dots.forEach((d) => {
+    d.addEventListener("click", () => {
+      stopAutoplay();
+      goTo(Number(d.dataset.i));
+    });
+  });
+
+  // 좌우 드래그(스와이프)로 페이지 이동 — 마우스 드래그·터치 스와이프 모두 지원(Pointer Events)
+  let dragStartX = null;
+  slidesWrap.addEventListener("pointerdown", (e) => {
+    dragStartX = e.clientX;
+  });
+  slidesWrap.addEventListener("pointerup", (e) => {
+    if (dragStartX === null) return;
+    const deltaX = e.clientX - dragStartX;
+    dragStartX = null;
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX) return;
+    stopAutoplay();
+    if (deltaX < 0) {
+      goTo(current + 1); // 왼쪽으로 밀기 → 다음 페이지
+    } else {
+      goTo(current - 1); // 오른쪽으로 밀기 → 이전 페이지
+    }
+  });
+  slidesWrap.addEventListener("pointercancel", () => {
+    dragStartX = null;
+  });
+
+  const toast = document.getElementById("toast");
+  let toastTimer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 1600);
+  }
+
+  function goToMain() {
+    showToast("→ 내 회의 목록(화면 1)으로 이동");
+  }
+
+  render();
+  startAutoplay();
+</script>
+
+</body>
+</html>

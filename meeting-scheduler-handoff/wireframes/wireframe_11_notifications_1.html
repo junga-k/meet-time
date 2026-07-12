@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>와이어프레임 — 알림 목록 화면</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #1a1a1a;
+    --border-light: #c9c9c9;
+    --page-bg: #e9e9e7;
+    --card-bg: #ffffff;
+    --accent-red: #c0392b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 16px;
+    background: var(--page-bg);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .frame-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+  .app-card {
+    width: 100%;
+    max-width: 390px;
+    background: var(--card-bg);
+    border: 1.5px solid var(--border);
+    height: 844px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .status-bar {
+    height: 24px;
+    flex-shrink: 0;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .status-icons { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+  .screen-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    position: relative;
+  }
+  .tab-bar {
+    height: 56px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-light);
+    background: #fafaf9;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-around;
+    padding-top: 8px;
+  }
+  .tab-bar-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    font-size: 9.5px;
+    color: var(--muted);
+  }
+  .tab-bar-item.active { color: var(--ink); font-weight: 700; }
+  .notif-icon-wrap { position: relative; display: inline-flex; }
+  .notif-dot {
+    position: absolute;
+    top: -1px; right: -1px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #d33;
+    border: 1px solid var(--card-bg);
+  }
+  .notif-dot.hidden { display: none; }
+
+  .toast {
+    position: absolute;
+    bottom: 101px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--ink);
+    color: #fff;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    white-space: nowrap;
+    max-width: 320px;
+    text-align: center;
+    z-index: 40;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 헤더 */
+  .header {
+    padding: 16px 16px 12px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .header-top-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .page-title { font-size: 20px; font-weight: 700; }
+  .page-subtitle { font-size: 11.5px; color: var(--muted); }
+  .page-subtitle.all-read { color: var(--accent-green, #1e7a3d); }
+
+  /* 목록 */
+  .notif-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    min-height: 60px;
+  }
+  .notif-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 13px 2px;
+    border-bottom: 1px solid #f0f0ee;
+    cursor: pointer;
+  }
+  .notif-item:active { background: #fafaf9; }
+  .notif-item:last-child { border-bottom: none; }
+  .notif-dot-marker {
+    flex-shrink: 0;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent-red);
+    margin-top: 6px;
+  }
+  .notif-dot-marker.hidden-marker { background: transparent; }
+  .notif-main { flex: 1; min-width: 0; }
+  .notif-top-line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
+  .notif-meeting-title { font-size: 12px; color: var(--muted); }
+  .notif-meeting-title.unread { color: var(--ink); font-weight: 700; }
+  .notif-time { font-size: 10.5px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
+  .notif-message { font-size: 13px; line-height: 1.45; color: var(--ink); }
+  .notif-message.unread { font-weight: 700; }
+  .notif-type-tag {
+    display: inline-block;
+    font-size: 9px;
+    padding: 1px 6px;
+    border: 1px solid var(--border-light);
+    color: var(--muted);
+    border-radius: 10px;
+    font-weight: 600;
+    margin-top: 5px;
+  }
+
+  .empty-hint {
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    padding: 40px 0;
+    line-height: 1.6;
+  }
+
+  /* 구현 노트 */
+  .dev-notes {
+    width: 100%;
+    max-width: 390px;
+    margin-top: 24px;
+    border: 1px dashed var(--border);
+    padding: 16px 18px;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--ink);
+    background: #fff;
+  }
+  .dev-notes h3 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .dev-notes code { background: #f0f0ee; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  .dev-notes ul { margin: 4px 0 12px; padding-left: 18px; }
+  .dev-notes ul:last-child { margin-bottom: 0; }
+  .dev-notes .warn { color: #8a4b00; }
+</style>
+</head>
+<body>
+
+<div class="frame-label">화면 11 · 알림 목록 (모든 로그인 사용자) — MVP</div>
+
+<div class="app-card">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span class="status-icons">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19v-3M9 19v-6M14 19v-9M19 19V5"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5a15 15 0 0118 0"/><path d="M6.2 12a10.5 10.5 0 0111.6 0"/><path d="M9.5 15.5a5.8 5.8 0 015 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.2v3.6"/><rect x="4" y="9" width="10" height="6" fill="currentColor" stroke="none"/></svg>
+    </span>
+  </div>
+
+  <div class="screen-content">
+    <div class="header">
+      <div class="header-top-row">
+        <span class="page-title">알림</span>
+        <span class="page-subtitle" id="unreadLabel"></span>
+      </div>
+    </div>
+
+    <div class="notif-list" id="notifList"><!-- JS로 렌더링 --></div>
+
+    <div class="toast" id="notifToast"></div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/></svg>예약</div>
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>내 회의</div>
+    <div class="tab-bar-item active"><span class="notif-icon-wrap"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10.5a6 6 0 1112 0c0 4.2 1.5 5.5 1.5 5.5h-15S6 14.7 6 10.5z"/><path d="M9.7 18.5a2.3 2.3 0 004.6 0"/></svg><span class="notif-dot" id="tabNotifDot"></span></span>알림</div>
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20c0-4.14 3.36-7.5 7.5-7.5s7.5 3.36 7.5 7.5"/></svg>내 정보</div>
+  </div>
+</div>
+
+<div class="dev-notes">
+  <h3>구현 노트 (Claude Code 참고용)</h3>
+  <ul>
+    <li><strong>접근 대상</strong>: 모든 로그인 사용자, 탭바 "알림" 탭. 이 화면은 top-level 탭 화면이라 다른 화면들과 달리 상단에 뒤로가기 화살표 없이 큰 제목(wireframe_05_meeting_list.html과 동일한 헤더 패턴)만 둠</li>
+    <li><strong>표시 순서·강조</strong>: <code>NOTIFICATION</code> 목록을 최신순으로 표시하고, <code>is_read=false</code> 항목은 스펙 문구 "굵게 또는 좌측 점" 중 <strong>둘 다</strong> 적용(좌측 빨간 점 마커 + 회의 제목/문구 굵게)해서 시인성을 더 확실히 함. 항목마다 관련 회의 제목·알림 문구·발생 시각을 표시하고, 어떤 종류의 변경인지 한눈에 알 수 있도록 <code>NOTIFICATION.type</code> 값을 작은 태그로도 함께 보여줌(스펙에 명시된 항목은 아니지만 10가지 타입이 뒤섞여 나열되므로 구분에 도움이 될 것 같아 추가함)</li>
+    <li><strong>항목 탭 시 동작</strong>: 클릭하면 (1) 토스트로 "관련 회의 화면으로 이동"을 시뮬레이션하고 (2) 해당 항목의 <code>is_read</code>를 <code>true</code>로 바꿔 좌측 점·굵게 표시가 즉시 사라짐 — 실제로는 페이지 이동이 일어나지만 이 와이어프레임은 알림 목록 자체가 초점이라 라우팅은 토스트로만 표현</li>
+    <li class="warn"><strong>"대시보드 또는 상세" 라우팅 규칙의 실제 적용 한계(스펙 보완 필요 지점)</strong>: 스펙 원문은 이동 대상을 "대시보드 또는 상세" 두 가지로만 서술하지만, 실제로는 알림 종류·회의 진행 단계·보는 사람의 역할(주최자/참석자)에 따라 더 세분화된 화면으로 보내는 게 더 자연스러워 보임. 그래서 이 와이어프레임에서는 <code>route</code> 값을 <strong>"dashboard"/"detail" 두 개로 제한하지 않고</strong>, 안건수정 알림은 "agenda"(→ 화면 4), 완화요청(변경요청) 알림은 "response"(→ 화면 6, 완화요청 응답)로 세분화해 실제로 더 맞는 라우팅이 어떤 모습일지 시범적으로 보여줌. 대시보드(화면 5)는 주최자 전용이라 참석자 입장에선 애초에 접근 권한이 없다는 점도 스펙과 충돌하는 부분 — 실제 구현 전에 이 라우팅 규칙을 알림 타입별·역할별로 정식으로 다시 정의하는 걸 권장함</li>
+    <li><strong>탭바 배지 동기화</strong>: db_model_mvp.md·screen_specs.md 규칙대로 <strong>개수가 아닌 존재 여부</strong>만 표시하도록, 이 화면 자체의 탭바 "알림" 아이콘 빨간 점도 목록의 미확인 항목 수를 실시간으로 반영해 전부 읽으면 사라지게 만듦(다른 화면들의 탭바 점은 정적 표시이며, 이 화면만 유일하게 동적으로 갱신됨 — 알림 목록 화면이라는 맥락상 가장 자연스러운 곳이라 판단)</li>
+    <li>상단 부제목은 "미확인 N건"으로 표시하다가 전부 읽으면 "모두 확인했어요"로 바뀜 — 스펙엔 없는 세부 표현이지만 사용자가 진행 상황을 바로 알 수 있도록 추가함</li>
+    <li>데모 데이터는 <code>NOTIFICATION.type</code> 10종(안건등록/안건수정/시간확정/불참안내/재조율/참석재확인/회의실확정/완화요청/마감임박/응답요청 등) 중 다양한 케이스를 섞어 구성. "불참안내" 항목은 wireframe_09_meeting_detail.html의 "정다은님이 압축후보 전부 불가로 불참 처리된" 시나리오와 동일한 맥락을 재사용함. "재조율" 타입은 <strong>두 단계를 각각</strong> 보여줌 — ① 재조율이 막 시작된 시점("필수 참석자 불참으로 재조율이 시작됐어요")과 ② 새 시간이 정해진 시점("회의 시간이 O→O로 변경됐어요")을 서로 다른 알림으로 분리해 시간순으로 배치. "완화요청" 타입도 <strong>양쪽 당사자 시점을 모두</strong> 넣음 — 주최자가 보낸 직후 시점("이지훈님에게 요청했어요")과, 실제로 요청을 받은 당사자 시점("참석 가능 여부를 다시 확인해주세요", 화면 표시상 wireframe_07처럼 "변경요청"으로 순화된 문구)을 함께 예시로 둠</li>
+    <li>아이콘은 전부 인라인 SVG(외부 CDN 웹폰트 의존 없음), 다른 와이어프레임과 동일한 스타일</li>
+  </ul>
+</div>
+
+<script>
+  const NOTIFICATIONS = [
+    { read: false, time: "5분 전", meetingTitle: "3분기 로드맵 논의", message: "회의 시간이 7/14(화) 14:00~15:00로 확정됐어요", type: "시간확정", route: "detail" },
+    { read: false, time: "20분 전", meetingTitle: "3분기 로드맵 논의", message: "김민준님이 안건을 수정했어요: \"3분기 목표 리뷰\" 설명이 변경됐어요", type: "안건수정", route: "agenda" },
+    { read: false, time: "47분 전", meetingTitle: "마케팅 주간회의", message: "박서연님이 안건을 등록했어요: \"캠페인 예산안\"", type: "안건등록", route: "dashboard" },
+    { read: false, time: "1시간 전", meetingTitle: "디자인 리뷰", message: "재조율로 회의 시간이 7/16(목) 09:00~10:00 → 7/18(토) 13:00~14:00로 변경됐어요", type: "재조율", route: "detail" },
+    { read: false, time: "2시간 전", meetingTitle: "3분기 로드맵 논의", message: "정다은님이 이 회의에 불참으로 기록됐어요 · 참석 가능하시면 지금 변경할 수 있어요", type: "불참안내", route: "detail" },
+    { read: false, time: "6시간 전", meetingTitle: "긴급 이슈 대응", message: "조율이 필요한 후보 시간에 대해 참석 가능 여부를 다시 확인해주세요", type: "완화요청", route: "response" },
+    { read: true, time: "어제", meetingTitle: "디자인 리뷰", message: "필수 참석자 불참으로 재조율이 시작됐어요", type: "재조율", route: "dashboard" },
+    { read: true, time: "어제", meetingTitle: "인사평가 회의", message: "확정된 시간에 참석 가능하신지 재확인해주세요", type: "참석재확인", route: "reconfirm" },
+    { read: true, time: "어제", meetingTitle: "팀 빌딩 워크샵 기획", message: "회의실이 5층 세미나실로 확정됐어요", type: "회의실확정", route: "detail" },
+    { read: true, time: "2일 전", meetingTitle: "긴급 이슈 대응", message: "이지훈님에게 일정 변경 가능 여부를 요청했어요", type: "완화요청", route: "dashboard" },
+    { read: true, time: "3일 전", meetingTitle: "마케팅 주간회의", message: "필수 응답 마감이 3시간 남았어요", type: "마감임박", role: "필수" },
+    { read: true, time: "4일 전", meetingTitle: "3분기 로드맵 논의", message: "주최자가 응답을 요청했어요", type: "응답요청", role: "선택" },
+    { read: true, time: "5일 전", meetingTitle: "마케팅 주간회의", message: "참석자 응답 마감이 임박했어요 · 대시보드에서 응답 현황을 확인해주세요", type: "마감임박", role: "주최자" },
+  ];
+
+  const listEl = document.getElementById("notifList");
+  const unreadLabelEl = document.getElementById("unreadLabel");
+  const tabNotifDot = document.getElementById("tabNotifDot");
+  const toastEl = document.getElementById("notifToast");
+
+  function unreadCount() {
+    return NOTIFICATIONS.filter((n) => !n.read).length;
+  }
+
+  // 받침 유무에 따라 "로"/"으로" 조사가 달라지므로(대시보드·상세는 받침 없음, 화면은 받침 있음)
+  // 조사까지 포함한 완성된 문구를 미리 저장해둠
+  const ROUTE_LABELS = {
+    dashboard: "회의 대시보드로",
+    detail: "회의 상세로",
+    agenda: "안건 화면으로",
+    response: "변경요청 응답 화면으로",
+    reconfirm: "참석 재확인 화면으로",
+    slotResponse: "슬롯 응답 화면으로",
+    shortlist: "압축 후보 확인 화면으로",
+  };
+  function routeLabel(route) {
+    return ROUTE_LABELS[route] || "회의 상세로";
+  }
+
+  // 응답요청/마감임박 알림은 보는 사람의 역할(필수/선택/주최자)에 따라 이동 화면이 달라짐
+  // — 화면5(대시보드)는 주최자 전용이라 참석자에게 그대로 쓸 수 없어서 역할별로 분기함
+  // (role: "필수" → 화면3 슬롯 응답, "선택" → 화면12 압축 후보 확인, "주최자"(또는 role 미지정) → 화면5 대시보드)
+  function effectiveRoute(n) {
+    if (n.type === "응답요청" || n.type === "마감임박") {
+      if (n.role === "필수") return "slotResponse";
+      if (n.role === "선택") return "shortlist";
+      return "dashboard";
+    }
+    return n.route;
+  }
+
+  // 태그에 표시할 라벨 — "완화요청"은 내부/시스템 용어이므로 화면엔 "변경요청"으로 표시
+  // (NOTIFICATION.type 필드 자체는 라우팅 등에 쓰이는 내부 값이라 그대로 유지하고, 표시 문구만 매핑함)
+  const NOTIF_TYPE_LABELS = {
+    완화요청: "변경요청",
+  };
+  function notifTypeLabel(type) {
+    return NOTIF_TYPE_LABELS[type] || type;
+  }
+
+  function render() {
+    const count = unreadCount();
+    if (count > 0) {
+      unreadLabelEl.textContent = `미확인 ${count}건`;
+      unreadLabelEl.classList.remove("all-read");
+    } else {
+      unreadLabelEl.textContent = "모두 확인했어요";
+      unreadLabelEl.classList.add("all-read");
+    }
+    tabNotifDot.classList.toggle("hidden", count === 0);
+
+    if (NOTIFICATIONS.length === 0) {
+      listEl.innerHTML = `<div class="empty-hint">아직 도착한 알림이 없어요</div>`;
+      return;
+    }
+    listEl.innerHTML = NOTIFICATIONS.map((n, i) => `
+      <div class="notif-item" data-idx="${i}">
+        <div class="notif-dot-marker ${n.read ? "hidden-marker" : ""}"></div>
+        <div class="notif-main">
+          <div class="notif-top-line">
+            <span class="notif-meeting-title ${!n.read ? "unread" : ""}">${n.meetingTitle}</span>
+            <span class="notif-time">${n.time}</span>
+          </div>
+          <div class="notif-message ${!n.read ? "unread" : ""}">${n.message}</div>
+          <span class="notif-type-tag">${notifTypeLabel(n.type)}</span>
+        </div>
+      </div>`).join("");
+  }
+
+  listEl.addEventListener("click", (e) => {
+    const item = e.target.closest("[data-idx]");
+    if (!item) return;
+    const idx = Number(item.dataset.idx);
+    const n = NOTIFICATIONS[idx];
+    const wasUnread = !n.read;
+    n.read = true;
+    render();
+    showToast(`→ "${n.meetingTitle}" ${routeLabel(effectiveRoute(n))} 이동${wasUnread ? " · 확인 처리됨" : ""}`);
+  });
+
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toastEl.classList.remove("show"), 1600);
+  }
+
+  render();
+  // ---- 하단 탭바 터치 이동 (전 화면 공통 패턴) ----
+  const TAB_ROUTES = {
+    "예약": "예약 화면(화면 17)",
+    "내 회의": "내 회의 화면(화면 1)",
+    "알림": "알림 화면(화면 11)",
+    "내 정보": "내 정보 화면(화면 16)",
+  };
+  document.querySelector(".tab-bar").addEventListener("click", (e) => {
+    const item = e.target.closest(".tab-bar-item");
+    if (!item || item.classList.contains("active")) return;
+    const label = item.textContent.trim();
+    if (TAB_ROUTES[label]) showToast(`→ ${TAB_ROUTES[label]}로 이동`);
+  });
+</script>
+
+</body>
+</html>

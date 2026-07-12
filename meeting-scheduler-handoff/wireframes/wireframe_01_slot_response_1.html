@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>와이어프레임 — 슬롯 응답 화면</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #1a1a1a;
+    --border-light: #c9c9c9;
+    --page-bg: #e9e9e7;
+    --card-bg: #ffffff;
+    --avoid-stripe: #d8d8d8;
+    --unavailable-bg: #1a1a1a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 16px;
+    background: var(--page-bg);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .frame-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+  .app-card {
+    width: 100%;
+    max-width: 390px;
+    background: var(--card-bg);
+    border: 1.5px solid var(--border);
+    height: 844px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .status-bar {
+    height: 24px;
+    flex-shrink: 0;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .status-icons { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+  .screen-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    position: relative;
+  }
+  .tab-bar {
+    height: 56px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-light);
+    background: #fafaf9;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-around;
+    padding-top: 8px;
+  }
+  .tab-bar-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    font-size: 9.5px;
+    color: var(--muted);
+  }
+  .tab-bar-item.active { color: var(--ink); font-weight: 700; }
+  .notif-icon-wrap { position: relative; display: inline-flex; }
+  .notif-dot {
+    position: absolute;
+    top: -1px; right: -1px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #d33;
+    border: 1px solid var(--card-bg);
+  }
+  .toast {
+    position: absolute;
+    bottom: 101px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--ink);
+    color: #fff;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    white-space: nowrap;
+    z-index: 45;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* 헤더 */
+  .header {
+    padding: 14px 16px 0;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+  }
+  .back-arrow {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    color: var(--ink);
+  }
+  .user-name {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .user-id-block { display: flex; align-items: center; gap: 7px; }
+  .avatar {
+    border-radius: 50%;
+    border: 1px solid var(--border-light);
+    background: #f0f0ee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--ink);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .avatar-md { width: 24px; height: 24px; font-size: 10.5px; }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .user-meta-row {
+    text-align: right;
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+  .badge-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+  }
+  .badge {
+    font-size: 9.5px;
+    padding: 2px 7px;
+    border: 1px solid var(--ink);
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .meeting-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    line-height: 1.3;
+  }
+  .tabs {
+    display: flex;
+    margin: 10px -16px 0;
+    padding: 0 16px;
+  }
+  .tab {
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+  }
+  .tab.active {
+    color: var(--ink);
+    font-weight: 700;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  /* 참석 형태 선택 — 시간 슬롯 그리드 다음(footer 바로 위)에 위치하므로 위쪽 경계선만 사용 */
+  .attendance-select {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-light);
+    flex-shrink: 0;
+  }
+  .attendance-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .segmented { display: flex; border: 1px solid var(--border-light); }
+  .segmented button {
+    flex: 1; padding: 9px; font-size: 12px; background: #fff; border: none;
+    border-right: 1px solid var(--border-light); cursor: pointer; color: var(--muted); font-family: inherit;
+  }
+  .segmented button:last-child { border-right: none; }
+  .segmented button.active { background: var(--ink); color: #fff; font-weight: 700; }
+
+  /* 확정 안내 배너 — 응답완료 버튼 바로 위(footer)에 위치 */
+  .warning-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 0 0 10px;
+    font-size: 11px;
+    color: var(--ink);
+    line-height: 1.45;
+    flex-shrink: 0;
+  }
+  .warning-banner svg { margin-top: 1px; flex-shrink: 0; color: var(--muted); }
+
+  /* 그리드는 화면 진입 즉시 편집 가능 — 참석 형태 선택보다 먼저 오도록 순서 변경하면서
+     "참석 형태 미선택 시 그리드 잠금" 오버레이 기능은 제거함(§UX 결정) */
+  .grid-wrap { position: relative; }
+
+  /* 확인 팝업 */
+  .confirm-modal-overlay {
+    position: absolute; inset: 0; background: rgba(20,20,20,0.4);
+    z-index: 30; display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  .confirm-modal-overlay.show { display: flex; }
+  .confirm-modal-box { background: #fff; border: 1.5px solid var(--ink); width: 100%; padding: 18px; }
+  .confirm-modal-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+  .confirm-modal-body { font-size: 12px; color: var(--ink); line-height: 1.7; margin-bottom: 16px; }
+  .confirm-modal-body .muted-line { color: var(--muted); font-size: 11px; margin-top: 8px; }
+  .confirm-modal-actions { display: flex; gap: 8px; }
+  .confirm-modal-actions button {
+    flex: 1; padding: 10px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    font-family: inherit; border: 1px solid var(--ink);
+  }
+  .confirm-btn-cancel { background: #fff; color: var(--ink); }
+  .confirm-btn-ok { background: var(--ink); color: #fff; }
+
+  /* 안내/마감 */
+  .meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .deadline {
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .instruction {
+    padding: 8px 16px 10px;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.4;
+    border-bottom: 1px dashed var(--border-light);
+  }
+
+  /* 범례 */
+  .legend {
+    display: flex;
+    gap: 14px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border-light);
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .swatch {
+    width: 14px; height: 14px;
+    border: 1px solid var(--ink);
+    flex-shrink: 0;
+  }
+  .swatch.available {
+    background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    color: #b7b7b3;
+    font-size: 10px;
+  }
+  .swatch.avoid {
+    background: repeating-linear-gradient(45deg, #fff, #fff 3px, var(--avoid-stripe) 3px, var(--avoid-stripe) 6px);
+  }
+  .swatch.unavailable { background: var(--unavailable-bg); }
+
+  .privacy-note {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px 8px;
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.4;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .privacy-note svg { flex-shrink: 0; margin-top: 1px; }
+
+  /* 그리드 */
+  .grid-wrap {
+    padding: 14px 16px 6px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .grid-header-table,
+  .grid-body-table {
+    border-collapse: collapse;
+    width: 100%;
+    table-layout: fixed;
+  }
+  .col-time { width: 44px; }
+  .col-day { width: calc((100% - 44px) / 5); }
+  .grid-header-table th,
+  .grid-body-table td {
+    border: 1px solid var(--border-light);
+    text-align: center;
+  }
+  .grid-header-table th {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 0;
+    background: #f5f5f4;
+    border-bottom: 2px solid var(--ink);
+  }
+  .day-name { font-size: 12px; font-weight: 700; }
+  .day-date { font-size: 10px; font-weight: 400; color: var(--muted); margin-top: 1px; }
+  .grid-scroll {
+    flex: 1;
+    min-height: 120px;
+    overflow-y: auto;
+  }
+  .time-label {
+    font-size: 10.5px;
+    color: var(--muted);
+    padding: 0 4px;
+    white-space: nowrap;
+    background: #f5f5f4;
+  }
+  .slot {
+    height: 26px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    user-select: none;
+    transition: background 0.1s;
+  }
+  .slot[data-state="available"] { background: #fff; color: #b7b7b3; }
+  .slot[data-state="avoid"] {
+    background: repeating-linear-gradient(45deg, #fff, #fff 3px, var(--avoid-stripe) 3px, var(--avoid-stripe) 6px);
+    color: var(--ink);
+  }
+  .slot[data-state="unavailable"] {
+    background: var(--unavailable-bg);
+    color: #fff;
+  }
+  .slot:hover { outline: 1.5px solid var(--ink); outline-offset: -1.5px; }
+  .scroll-hint {
+    text-align: center;
+    font-size: 10.5px;
+    color: var(--muted);
+    padding: 4px 0 10px;
+  }
+
+  /* 하단 — 스크롤 영역(.grid-scroll)에 더 볼 내용이 남아있을 때만 그림자로 경계 표시,
+     맨 아래까지 스크롤하면 사라짐(고정 border 대신 동적 show-boundary 사용) */
+  .footer {
+    flex-shrink: 0;
+    padding: 14px 16px;
+    transition: box-shadow 0.15s ease;
+  }
+  .footer.show-boundary {
+    box-shadow: 0 -3px 8px rgba(0,0,0,0.10);
+  }
+  .submit-btn {
+    width: 100%;
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    padding: 11px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    margin-top: 10px;
+  }
+  .submit-btn:disabled { background: var(--border-light); color: var(--muted); cursor: not-allowed; }
+
+  /* 구현 노트 */
+  .dev-notes {
+    width: 100%;
+    max-width: 390px;
+    margin-top: 24px;
+    border: 1px dashed var(--border);
+    padding: 16px 18px;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--ink);
+    background: #fff;
+  }
+  .dev-notes h3 {
+    font-size: 13px;
+    margin: 0 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .dev-notes code {
+    background: #f0f0ee;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+  .dev-notes ul { margin: 4px 0 12px; padding-left: 18px; }
+  .dev-notes ul:last-child { margin-bottom: 0; }
+</style>
+</head>
+<body>
+
+<div class="frame-label">화면 3 · 슬롯 응답 (참가자용) — MVP</div>
+
+<div class="app-card">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span class="status-icons">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19v-3M9 19v-6M14 19v-9M19 19V5"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5a15 15 0 0118 0"/><path d="M6.2 12a10.5 10.5 0 0111.6 0"/><path d="M9.5 15.5a5.8 5.8 0 015 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.2v3.6"/><rect x="4" y="9" width="10" height="6" fill="currentColor" stroke="none"/></svg>
+    </span>
+  </div>
+
+  <div class="screen-content">
+  <div class="header">
+    <div class="header-top">
+      <div class="back-arrow"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></div>
+      <div class="user-id-block">
+        <span class="avatar avatar-md">김</span>
+        <span class="user-name">김민준</span>
+      </div>
+    </div>
+    <div class="user-meta-row">개발팀 · 과장 · 팀장</div>
+    <div class="badge-row"><div class="badge">필수 참석자</div></div>
+    <div class="meeting-title">3분기 로드맵 논의</div>
+    <div class="tabs">
+      <div class="tab active">시간 응답</div>
+      <div class="tab">안건 등록</div>
+    </div>
+  </div>
+
+  <div class="meta-row">
+    <span id="periodLabel">회의 예정 기간: 계산 중…</span>
+    <span class="deadline">마감 · 2일 14시간 남음</span>
+  </div>
+
+  <div class="instruction">
+    모든 시간은 기본 <strong>가능(✓)</strong>이에요. 참석이 어려운 시간을 클릭해 <strong>기피(△) → 불가(✕)</strong>로 표시해 주세요.
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch available">✓</span>가능</div>
+    <div class="legend-item"><span class="swatch avoid"></span>기피 (가능하면 피하고 싶음)</div>
+    <div class="legend-item"><span class="swatch unavailable"></span>불가 (절대 안 됨)</div>
+  </div>
+
+  <div class="privacy-note">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+    응답 내용은 개별 공개되지 않고, 집계 결과만 전달돼요.
+  </div>
+
+  <div class="grid-wrap" id="gridWrap">
+    <table class="grid-header-table">
+      <colgroup>
+        <col class="col-time"><col class="col-day"><col class="col-day"><col class="col-day"><col class="col-day"><col class="col-day">
+      </colgroup>
+      <thead>
+        <tr id="gridHeaderRow">
+          <th></th>
+        </tr>
+      </thead>
+    </table>
+    <div class="grid-scroll" id="gridScroll">
+      <table class="grid-body-table" id="slotGrid">
+        <colgroup>
+          <col class="col-time"><col class="col-day"><col class="col-day"><col class="col-day"><col class="col-day"><col class="col-day">
+        </colgroup>
+        <tbody><!-- JS로 렌더링 --></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="scroll-hint"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M6 9l6 6 6-6"/></svg> 스크롤해서 09:00~20:00 전체 확인</div>
+
+  <div class="attendance-select">
+    <div class="attendance-label">참석 형태 (회의당 1회 선택 · 마감 전까지 변경 가능)</div>
+    <div class="segmented" id="attendanceSegmented">
+      <button type="button" data-mode="offline">대면만</button>
+      <button type="button" data-mode="online">온라인만</button>
+      <button type="button" data-mode="either">둘 다 가능</button>
+    </div>
+  </div>
+
+  <div class="footer" id="responseFooter">
+    <div class="warning-banner">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.24 3.5L2.5 18a1.5 1.5 0 001.32 2.2h16.36a1.5 1.5 0 001.32-2.2L13.76 3.5a1.5 1.5 0 00-2.6 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+      <span>확정 후엔 일정 변경이 어려워요 · <span style="color:var(--muted);">제출하신 일정은 시스템이 자동으로 조율해요</span></span>
+    </div>
+    <button type="button" class="submit-btn" id="completeBtn" disabled>응답 완료</button>
+    <div class="hint" id="completeHint" style="font-size:11px; color:var(--muted); margin-top:6px; display:none;">✓ 응답 완료됨 · 마감 전까지 슬롯을 계속 수정할 수 있어요</div>
+  </div>
+
+  <div class="toast" id="saveToast">✓ 저장됨</div>
+
+  <div class="confirm-modal-overlay" id="completeConfirmOverlay">
+    <div class="confirm-modal-box">
+      <div class="confirm-modal-title">응답을 완료하시겠습니까?</div>
+      <div class="confirm-modal-body" id="completeConfirmSummary"></div>
+      <div class="confirm-modal-actions">
+        <button type="button" class="confirm-btn-cancel" id="completeConfirmCancel">취소</button>
+        <button type="button" class="confirm-btn-ok" id="completeConfirmOk">확인</button>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/></svg>예약</div>
+    <div class="tab-bar-item active"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>내 회의</div>
+    <div class="tab-bar-item"><span class="notif-icon-wrap"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10.5a6 6 0 1112 0c0 4.2 1.5 5.5 1.5 5.5h-15S6 14.7 6 10.5z"/><path d="M9.7 18.5a2.3 2.3 0 004.6 0"/></svg><span class="notif-dot"></span></span>알림</div>
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20c0-4.14 3.36-7.5 7.5-7.5s7.5 3.36 7.5 7.5"/></svg>내 정보</div>
+  </div>
+</div>
+
+<div class="dev-notes">
+  <h3>구현 노트 (Claude Code 참고용)</h3>
+  <ul>
+    <li><strong>시간 슬롯 응답을 먼저 하고, 참석 형태(대면만/온라인만/둘 다 가능)는 그 다음(그리드 아래·footer 바로 위)에서 선택</strong>하도록 화면 순서를 변경함(회의당 1회, <code>PARTICIPANT.attendance_mode</code>). 이전 버전엔 참석 형태를 그리드 진입 전에 먼저 고르게 하고 미선택 시 그리드 위에 잠금 오버레이를 씌워 셀 클릭을 막았는데(<code>pointer-events: none</code>), "가능한 시간부터 먼저 표시하고 참석 형태는 나중에 정한다"는 흐름이 더 자연스럽다는 결정에 따라 순서를 바꾸고 <strong>그리드 잠금 기능 자체를 제거</strong>함 — 그리드는 화면 진입 즉시 편집 가능. "응답 완료" 버튼은 기존과 동일하게 참석 형태를 아직 고르지 않았으면 비활성화. <strong>슬롯 응답·참석 형태 모두 마감 시각 전까지 몇 번이든 자유롭게 재수정 가능</strong>하며 최초 "응답 완료" 이후에도 잠기지 않음 — 단, 이미 한 번 "응답 완료"를 마친 뒤 참석 형태를 다시 바꾸면 "참석형태가 변경되어 회의 형태가 다시 계산돼요" 토스트가 떠서 재계산이 트리거된다는 것을 시각적으로 알려줌(실제로는 필수 참석자 전원 응답 완료 시점 혹은 마감 시점에 백엔드가 <code>MEETING.mode</code>를 재계산 — 이 화면엔 계산된 회의 형태를 직접 보여주는 지표가 없어 데모에서는 토스트만 시뮬레이션하고, 실제 갱신된 값은 화면 4·6에서 확인)</li>
+    <li><strong>확정 안내 배너는 "응답 완료" 버튼 바로 위(footer 영역)에 위치</strong> — 원래 참석 형태 선택 아래 상단에 뒀었는데, 위쪽에 참석형태·안내·범례·개인정보 문구가 쌓이면서 <code>grid-wrap</code>(<code>flex:1</code>)이 눌려 <code>.grid-scroll</code>의 <code>min-height:120px</code>보다 작아지고, 그 결과 그리드가 스크롤힌트·footer 위로 겹쳐 보이는 실제 렌더링 버그가 있었음(844px 고정 높이 카드 안에서 위쪽 고정 콘텐츠 총합이 너무 커서 발생). 배너를 응답을 마무리하는 시점(버튼 직전)으로 옮기고 문구를 "확정 후엔 일정 변경이 어려워요 · 제출하신 일정은 시스템이 자동으로 조율해요" 한 줄로 압축했으며, 함께 <code>.instruction</code>·<code>.legend</code>·<code>.privacy-note</code>의 문구와 패딩도 줄여 각각 1~2줄 이내로 맞춤 — 결과적으로 그리드 표시 영역이 약 113px→207px로 늘어나 겹침 없이 6줄 이상 보임. <strong>참고</strong>: 이전 초안에 있던 "AI가 확인 후 조율해요" 문구는 <code>project_handoff.md</code>의 "AI 활용 범위" 절(회의실 예약·회의 형태 계산·알림·리마인드는 전부 규칙 기반 자동화이며 LLM 불필요, LLM이 실제로 유용한 곳은 v2의 회의록 초안 생성·액션아이템 추출뿐)과 배치되어 이번에 규칙 기반 자동화를 뜻하는 "시스템이 자동으로 조율" 문구로 교체함 — 이 앱에서 LLM이 실제로 관여하는 화면은 없음</li>
+    <li>"응답 완료" 버튼: 참석 형태 선택 전엔 비활성화, 선택 후 활성화. 클릭 시 <strong>확인 팝업</strong>(선택한 참석 형태 요약 + "미표시 슬롯은 가능 처리" 안내)이 뜨고, "확인"을 눌러야 <code>PARTICIPANT.responded_at</code>이 기록됨(이 와이어프레임에선 로컬 변수로 시뮬레이션). 기록 후에도 <strong>그리드·참석 형태 모두 계속 편집 가능</strong> — "완료"가 잠금을 의미하지 않음, 단지 "다 확인했다"는 명시적 신호. 완료 후엔 하단에 "✓ 응답 완료됨" 안내 문구가 추가로 표시됨</li>
+    <li><strong>필수 참석자가 마감 시각까지 참석 형태를 응답하지 않으면 시스템이 자동으로 "무관"으로 간주하고 회의 형태 계산을 진행함</strong>(진행이 막히지 않도록) — 한 명이라도 무응답으로 남아 계산이 영영 보류되는 일이 없게 하기 위한 규칙. 이 와이어프레임 자체는 마감 시각 경과를 실제로 시뮬레이션하는 타이머가 없으므로, 실제 구현 시 백엔드 배치 잡이 <code>response_deadline</code> 경과 시점에 <code>PARTICIPANT.attendance_mode</code>가 비어있는 필수 참석자를 <code>either</code>(무관)로 채운 뒤 회의 형태 계산을 트리거해야 함</li>
+    <li>그리드 셀 = <code>TIME_SLOT</code> 1개. <strong>30분 단위</strong>로 생성 (예: 13:30 시작 슬롯도 가능)</li>
+    <li><strong>후보 날짜는 항상 월요일 시작이 아님</strong> — <code>MEETING.created_at</code> 다음 영업일부터 계산 (주말 제외, 이미 지난 날짜는 생성 안 함). 화·수요일 등 언제 생성해도 그 다음 영업일부터 후보가 시작됨</li>
+    <li>요일 헤더에 날짜도 함께 표시 (예: "목 7/10") — 요일만으로는 어느 주인지 헷갈릴 수 있어서 병기</li>
+    <li>셀 클릭 → <code>SLOT_RESPONSE</code> upsert (time_slot_id, user_id, status). 클릭마다 기피→불가→가능 순환(현재 상태가 "가능"인 셀을 클릭하면 기피로, 기피 상태에서 클릭하면 불가로, 불가 상태에서 클릭하면 다시 가능으로 돌아감)</li>
+    <li><code>SLOT_RESPONSE</code> 레코드가 없는 셀 = 기본값 "가능" (별도 레코드 생성 안 함) — 단, <strong>화면에는 옅은 체크(✓)로 명시</strong>해서 "응답 안 함"과 "가능으로 응답함"이 헷갈리지 않게 함. 안내 문구도 "모든 시간은 기본적으로 가능으로 표시돼 있다"는 전제를 먼저 알리고 "예외(기피·불가)만 클릭해서 표시"하라는 흐름으로 수정함 — 기존엔 "가능(✓)→기피(△)→불가(✕)" 3단계를 순서대로 거쳐야 하는 것처럼 읽혀서, 이미 전부 가능 처리된 화면에서 실제로는 첫 클릭에 기피가 뜨는 것과 문구가 어긋났음</li>
+    <li><strong>개인정보 안내 문구 추가</strong>: 범례 아래에 "내 응답 내용(기피·불가 표시 포함)은 다른 참석자에게 공개되지 않아요. 주최자에게도 집계된 결과만 전달돼요" — <code>screen_specs.md</code> 화면 5(대시보드)·6(완화요청 응답) 스펙 기준으로도 이미 참이었던 내용(대시보드엔 참가자별 <code>responded_at</code> 유무와 슬롯별 집계 점수만 노출, 완화요청 응답 화면은 본인이 설정한 제약만 본인에게 노출 — 어느 화면도 "누가 특정 슬롯에 기피/불가를 표시했는지"를 다른 사람에게 보여주지 않음)을 사용자에게도 명시적으로 알려주는 문구. 향후 화면 5·9 등을 만들 때도 이 원칙(개인별 응답 내용 비공개, 집계치만 공개)을 유지해야 함</li>
+    <li>그리드 셀 자체는 제출 버튼 없이 클릭 즉시 저장(클릭마다 짧은 "저장됨" 토스트로 피드백, 0.9초 후 자동 사라짐). 하단에 이를 별도로 설명하는 고정 문구는 두지 않음 — 바로 아래 "응답 완료" 버튼과 나란히 있으면 "제출 버튼이 없다"는 문구와 실제 버튼이 동시에 보여 혼란을 줄 수 있어 제거함(그리드 자동저장과 "응답 완료"는 서로 다른 개념: 전자는 셀 값 저장, 후자는 <code>responded_at</code> 기록). <code>response_deadline</code>까지 미응답 시 리마인드 발송(별도 배치 작업)</li>
+    <li>상단 우측은 <code>USER.name</code>, <code>USER.department</code>·<code>USER.rank</code>·<code>USER.position</code>, 그 아래 <code>PARTICIPANT.role</code> 배지 순으로 표시 — "내가 누구로서 응답하는지"를 명확히 하기 위함. 이름 앞 원형은 <code>USER.profile_image_url</code> 있으면 사진, 없으면 이름 첫 글자 이니셜 (앱 전체 공통 아바타 규칙)</li>
+    <li>"안건 등록" 탭은 별도 화면(화면 4)이며 같은 상위 진입점을 공유하는 구조</li>
+    <li>요일 헤더는 스크롤 영역과 <strong>물리적으로 분리된 별도 테이블</strong>(고정, 스크롤 안 됨). 시간 그리드만 담긴 아래쪽 테이블만 세로 스크롤됨 — 두 테이블은 `&lt;colgroup&gt;`으로 열 너비를 동일하게 맞춰 정렬 유지</li>
+    <li>모바일 기준 폭 390px (표준 아이폰 기준). 그리드 요일 열은 고정 px가 아니라 <code>calc((100% - 시간열너비) / 5)</code>로 계산해 화면 폭이 달라져도 항상 꽉 차게 반응</li>
+    <li>아이콘은 <strong>Tabler Icons 라인 스타일</strong>로 통일 — 이모지·도형 placeholder 사용 안 함. 이전 버전은 CDN 아이콘 웹폰트(<code>&lt;i class="ti ti-..."&gt;</code>)에 의존해 네트워크가 막힌 환경(오프라인 미리보기 등)에서 아이콘이 안 보이는 문제가 있었음 — 이번 수정에서 <code>wireframe_03_meeting_create.html</code>과 동일하게 <strong>인라인 SVG</strong>로 전부 교체해 외부 리소스 없이도 항상 렌더링되도록 함(상태바·뒤로가기·경고·잠금·스크롤 화살표·탭바 아이콘 전부 포함). 사람 아바타(이니셜/사진)는 별도 컴포넌트로 유지</li>
+    <li>탭바 "알림" 아이콘의 빨간 점은 <code>NOTIFICATION.is_read=false</code> 항목이 있을 때만 표시(항상 떠 있는 게 아님). 이 와이어프레임에서는 데모로 항상 켜둠 — 실제로는 안건 등록/수정/삭제 시 <strong>작성자 본인 제외</strong> 나머지 참가자에게만 생성됨</li>
+  </ul>
+</div>
+
+<script>
+  const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+
+  // 데모: 회의가 수요일(7/9)에 생성됐다고 가정 — 월요일이 아닌 요일에 생성되는 경우를 보여주기 위함
+  const meetingCreatedAt = new Date(2026, 6, 9);
+
+  function getUpcomingBusinessDays(after, count) {
+    const result = [];
+    const d = new Date(after);
+    d.setDate(d.getDate() + 1); // 생성일 다음날부터 (지난 날짜 자동 제외)
+    while (result.length < count) {
+      const dow = d.getDay();
+      if (dow !== 0 && dow !== 6) result.push(new Date(d)); // 주말 제외
+      d.setDate(d.getDate() + 1);
+    }
+    return result;
+  }
+
+  const columns = getUpcomingBusinessDays(meetingCreatedAt, 5).map((d) => ({
+    dayName: dayNames[d.getDay()],
+    dateLabel: `${d.getMonth() + 1}/${d.getDate()}`,
+  }));
+
+  const hours = [];
+  for (let h = 9; h < 20; h++) {
+    hours.push(`${String(h).padStart(2,"0")}:00`);
+    hours.push(`${String(h).padStart(2,"0")}:30`);
+  }
+
+  const states = ["available", "avoid", "unavailable"];
+  const stateLabel = { available: "✓", avoid: "△", unavailable: "✕" };
+
+  // 후보 기간 라벨 + 헤더 행 렌더링
+  document.getElementById("periodLabel").textContent =
+    `회의 예정 기간: ${columns[0].dateLabel}(${columns[0].dayName}) ~ ${columns[columns.length-1].dateLabel}(${columns[columns.length-1].dayName})`;
+
+  const headerRow = document.getElementById("gridHeaderRow");
+  columns.forEach((col) => {
+    const th = document.createElement("th");
+    th.innerHTML = `<div class="day-name">${col.dayName}</div><div class="day-date">${col.dateLabel}</div>`;
+    headerRow.appendChild(th);
+  });
+
+  const toast = document.getElementById("saveToast");
+  let toastTimer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 900);
+  }
+
+  const tbody = document.querySelector("#slotGrid tbody");
+  hours.forEach((hour) => {
+    const tr = document.createElement("tr");
+    const th = document.createElement("td");
+    th.className = "time-label";
+    th.textContent = hour;
+    tr.appendChild(th);
+
+    columns.forEach((col) => {
+      const td = document.createElement("td");
+      td.className = "slot";
+      td.dataset.state = "available";
+      td.dataset.date = col.dateLabel;
+      td.dataset.hour = hour;
+      td.textContent = stateLabel.available;
+      td.addEventListener("click", () => {
+        const cur = td.dataset.state;
+        const next = states[(states.indexOf(cur) + 1) % states.length];
+        td.dataset.state = next;
+        td.textContent = stateLabel[next];
+        showToast("✓ 저장됨");
+      });
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+
+  // 참석 형태 선택 — 회의당 1회, 시간 슬롯 그리드 다음(footer 바로 위)에서 선택.
+  // 그리드는 화면 진입 즉시 편집 가능하며 더 이상 참석 형태 선택으로 잠기지 않음(§UX 결정).
+  // 참석 형태·슬롯 응답 모두 마감 전까지 몇 번이든 재수정 가능 — "응답 완료" 이후에도 잠기지 않음.
+  const ATTENDANCE_LABELS = { offline: "대면만", online: "온라인만", either: "둘 다 가능" };
+  let attendanceMode = null;
+  let respondedAt = null; // PARTICIPANT.responded_at (최초 "응답 완료" 이후에만 채워짐, 시뮬레이션)
+  const attendanceSegmented = document.getElementById("attendanceSegmented");
+  const completeBtn = document.getElementById("completeBtn");
+  const completeHint = document.getElementById("completeHint");
+
+  attendanceSegmented.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-mode]");
+    if (!btn) return;
+    const prevMode = attendanceMode;
+    attendanceMode = btn.dataset.mode;
+    attendanceSegmented.querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("active", b.dataset.mode === attendanceMode);
+    });
+    completeBtn.disabled = false;
+    // 이미 한 번 "응답 완료"를 마친 뒤 참석 형태를 바꾸면, 회의 형태가 다시 계산된다는 것을
+    // 사용자에게 알려줌(실제 재계산은 백엔드가 트리거 — 여기선 토스트로만 시뮬레이션)
+    if (respondedAt && prevMode !== attendanceMode) {
+      showToast("참석형태가 변경되어 회의 형태가 다시 계산돼요");
+    }
+  });
+
+  // "응답 완료" — 확인 팝업 → 확인 시 PARTICIPANT.responded_at 기록(시뮬레이션)
+  const completeConfirmOverlay = document.getElementById("completeConfirmOverlay");
+  const completeConfirmSummary = document.getElementById("completeConfirmSummary");
+
+  completeBtn.addEventListener("click", () => {
+    if (completeBtn.disabled) return; // 참석 형태 미선택 시 도달 불가 (안전장치)
+    completeConfirmSummary.innerHTML = `
+      선택한 참석 형태: <strong>${ATTENDANCE_LABELS[attendanceMode] || "-"}</strong><br>
+      표시하지 않은 슬롯은 모두 "가능"으로 처리돼요.
+      <div class="muted-line">확인을 누르면 응답 완료 시각이 기록돼요. 이후에도 슬롯·참석 형태는 마감 전까지 계속 수정할 수 있지만, 필수 참석자 전원이 완료하면 마감 전이라도 후보가 압축되고 회의 형태가 자동 계산돼요.</div>
+    `;
+    completeConfirmOverlay.classList.add("show");
+  });
+  document.getElementById("completeConfirmCancel").addEventListener("click", () => {
+    completeConfirmOverlay.classList.remove("show");
+  });
+  document.getElementById("completeConfirmOk").addEventListener("click", () => {
+    completeConfirmOverlay.classList.remove("show");
+    respondedAt = new Date();
+    completeHint.style.display = "block";
+    showToast("✓ 응답 완료");
+  });
+
+  // 스크롤 영역(.grid-scroll)에 더 볼 내용이 남아있을 때만 footer 위에 그림자로 경계 표시
+  const gridScrollEl = document.getElementById("gridScroll");
+  const responseFooterEl = document.getElementById("responseFooter");
+  function updateFooterBoundary() {
+    const atBottom = gridScrollEl.scrollTop + gridScrollEl.clientHeight >= gridScrollEl.scrollHeight - 2;
+    responseFooterEl.classList.toggle("show-boundary", !atBottom);
+  }
+  gridScrollEl.addEventListener("scroll", updateFooterBoundary);
+  updateFooterBoundary();
+  // ---- 하단 탭바 터치 이동 (전 화면 공통 패턴) ----
+  const TAB_ROUTES = {
+    "예약": "예약 화면(화면 17)",
+    "내 회의": "내 회의 화면(화면 1)",
+    "알림": "알림 화면(화면 11)",
+    "내 정보": "내 정보 화면(화면 16)",
+  };
+  document.querySelector(".tab-bar").addEventListener("click", (e) => {
+    const item = e.target.closest(".tab-bar-item");
+    if (!item || item.classList.contains("active")) return;
+    const label = item.textContent.trim();
+    const dest = TAB_ROUTES[label];
+    if (!dest) return;
+    showToast(`→ ${dest}로 이동`);
+  });
+</script>
+
+</body>
+</html>

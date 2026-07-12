@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>와이어프레임 — 최초 프로필 설정 화면</title>
+<style>
+  :root {
+    --ink: #1a1a1a; --muted: #6b6b6b; --border: #1a1a1a; --border-light: #c9c9c9;
+    --page-bg: #e9e9e7; --card-bg: #ffffff; --accent-red: #c0392b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 16px; background: var(--page-bg);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    color: var(--ink); display: flex; flex-direction: column; align-items: center;
+  }
+  .frame-label { font-size: 12px; color: var(--muted); letter-spacing: 0.05em; margin-bottom: 10px; text-transform: uppercase; }
+  .app-card {
+    width: 100%; max-width: 390px; background: var(--card-bg);
+    border: 1.5px solid var(--border); height: 844px;
+    display: flex; flex-direction: column; position: relative; overflow: hidden;
+  }
+  .status-bar {
+    height: 24px; flex-shrink: 0; padding: 0 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border-light); font-size: 11px; font-weight: 700; color: var(--ink);
+  }
+  .status-icons { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+  .screen-content { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
+
+  .header { padding: 32px 16px 12px; flex-shrink: 0; }
+  .header-title { font-size: 18px; font-weight: 700; }
+
+  .form-body { flex: 1; overflow-y: auto; padding: 6px 16px 20px; }
+
+  .readonly-card {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border-light); background: #fafaf9;
+    padding: 10px 12px; margin-bottom: 6px;
+  }
+  .avatar { border-radius: 50%; border: 1px solid var(--border-light); background: #f0f0ee; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--ink); flex-shrink: 0; overflow: hidden; }
+  .avatar-md { width: 40px; height: 40px; font-size: 15px; }
+  .readonly-info { flex: 1; min-width: 0; }
+  .readonly-name { font-size: 13.5px; font-weight: 700; }
+  .readonly-email { font-size: 11px; color: var(--muted); }
+  .readonly-tag { font-size: 9.5px; color: var(--muted); border: 1px solid var(--border-light); border-radius: 20px; padding: 2px 8px; flex-shrink: 0; }
+
+  .section { margin-bottom: 32px; }
+  .section-label { font-size: 11px; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 16px; }
+  .field { width: 100%; border: 1px solid var(--border-light); padding: 9px 10px; font-size: 13px; font-family: inherit; background: #fff; color: var(--ink); margin-bottom: 8px; }
+  .field-row { display: flex; gap: 8px; }
+  .field-row .field { flex: 1; }
+  .field-group { margin-bottom: 12px; }
+  .field-group .field { margin-bottom: 0; }
+  .field-label { display: block; font-size: 11.5px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+  .required-mark { color: var(--accent-red); font-weight: 600; margin-left: 3px; }
+  .optional-mark { color: var(--muted); font-weight: 500; margin-left: 3px; }
+  .hint { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .account-hint { margin-bottom: 32px; }
+  .contact-footnote { margin-top: 4px; }
+
+  .avatar-upload-row { display: flex; align-items: center; gap: 12px; }
+  .avatar-lg { width: 56px; height: 56px; font-size: 20px; }
+  .avatar-photo-wrap { position: relative; flex-shrink: 0; }
+  .avatar-edit-btn {
+    position: absolute; right: -3px; bottom: -3px;
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 1.5px solid #fff; background: var(--ink); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0;
+  }
+  .avatar-hint-text { font-size: 11px; color: var(--muted); line-height: 1.5; flex: 1; }
+
+  .footer { flex-shrink: 0; padding: 12px 16px 14px; background: #fafaf9; transition: box-shadow 0.15s ease; }
+  .footer.show-boundary { box-shadow: 0 -3px 8px rgba(0,0,0,0.10); }
+  .submit-btn {
+    width: 100%; background: var(--ink); color: #fff; border: none; outline: none;
+    -webkit-appearance: none; appearance: none; padding: 12px;
+    font-size: 13.5px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  .submit-btn:disabled { background: #cfcfcc; border: none; outline: none; cursor: not-allowed; }
+
+  .toast {
+    position: absolute; bottom: 78px; left: 50%; transform: translateX(-50%) translateY(8px);
+    background: var(--ink); color: #fff; font-size: 11.5px; font-weight: 600;
+    padding: 7px 16px; border-radius: 20px; opacity: 0; pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease; white-space: nowrap; z-index: 40;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .dev-notes {
+    width: 100%; max-width: 390px; margin-top: 24px;
+    border: 1px dashed var(--border); padding: 16px 18px;
+    font-size: 12.5px; line-height: 1.7; color: var(--ink); background: #fff;
+  }
+  .dev-notes h3 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .dev-notes code { background: #f0f0ee; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  .dev-notes ul { margin: 4px 0 12px; padding-left: 18px; }
+  .dev-notes ul:last-child { margin-bottom: 0; }
+  .dev-notes .warn { color: #8a4b00; }
+</style>
+</head>
+<body>
+
+<div class="frame-label">화면 14 · 최초 프로필 설정 (회원가입 대체) — MVP (신규)</div>
+
+<div class="app-card">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span class="status-icons">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19v-3M9 19v-6M14 19v-9M19 19V5"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5a15 15 0 0118 0"/><path d="M6.2 12a10.5 10.5 0 0111.6 0"/><path d="M9.5 15.5a5.8 5.8 0 015 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.2v3.6"/><rect x="4" y="9" width="10" height="6" fill="currentColor" stroke="none"/></svg>
+    </span>
+  </div>
+
+  <div class="screen-content">
+    <div class="header">
+      <div class="header-title">프로필을 완성해주세요</div>
+    </div>
+
+    <div class="form-body" id="formBody">
+      <div class="readonly-card">
+        <div class="avatar avatar-md">김</div>
+        <div class="readonly-info">
+          <div class="readonly-name">김정아</div>
+          <div class="readonly-email">junga6228@company.com</div>
+        </div>
+        <span class="readonly-tag">계정 연동됨</span>
+      </div>
+      <div class="hint account-hint">부서·직위·직책은 회사 디렉토리 정보를 자동으로 반영해요.<br>자세한 내용은 "내 정보" 화면에서 확인할 수 있어요</div>
+
+      <div class="section">
+        <div class="section-label">프로필 사진</div>
+        <div class="avatar-upload-row">
+          <div class="avatar-photo-wrap">
+            <div class="avatar avatar-lg" id="avatarPreview">김</div>
+            <button type="button" class="avatar-edit-btn" id="uploadBtn" aria-label="프로필 사진 변경">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg>
+            </button>
+          </div>
+          <div class="avatar-hint-text">연동된 계정의 프로필 사진을 기본으로 가져와요.<br>원하는 이미지로 변경 가능합니다.</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">연락처</div>
+
+        <div class="field-group">
+          <label class="field-label" for="phoneInput">휴대폰번호<span class="required-mark">(필수)</span></label>
+          <input type="tel" class="field" id="phoneInput" placeholder="숫자만 입력해주세요" inputmode="numeric">
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="extInput">내선번호<span class="optional-mark">(선택)</span></label>
+          <input type="text" class="field" id="extInput" placeholder="숫자만 입력해주세요" inputmode="numeric">
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="messengerInput">메신저 ID<span class="optional-mark">(선택)</span></label>
+          <input type="text" class="field" id="messengerInput" placeholder="예: Slack @jeongah">
+        </div>
+
+        <div class="hint contact-footnote">여기서 입력한 정보는 나중에 "내 정보" 화면에서 언제든 수정할 수 있어요</div>
+      </div>
+    </div>
+
+    <div class="toast" id="routeToast"></div>
+
+    <div class="footer" id="footer">
+      <button type="button" class="submit-btn" id="submitBtn" disabled>시작하기</button>
+    </div>
+  </div>
+</div>
+
+<div class="dev-notes">
+  <h3>구현 노트 (Claude Code 참고용)</h3>
+  <ul>
+    <li>기존 스펙엔 없던 <strong>완전 신규 화면</strong> — 전통적인 "회원가입"을 대체함. 로그인(화면 13)에서 <code>USER</code> 레코드가 최초 생성될 때만(= 최초 로그인) 한 번 노출되고, 이후 재로그인 시에는 다시 노출되지 않음</li>
+    <li>이름(<code>USER.name</code>)·이메일(<code>USER.email</code>)은 SSO/Google 인증 응답에서 이미 받아온 값이라 <strong>읽기 전용</strong>으로만 표시하고 이 화면에서 입력받지 않음</li>
+    <li><strong>부서·직위·직책(<code>department</code>, <code>rank</code>, <code>position</code>)도 이 화면에서 입력받지 않음</strong> — 화면 2/3의 조직도에 이미 부서/직위/직책이 표시된다는 것은 회사 디렉토리(HRIS 또는 SSO 그룹/속성)가 이미 동기화돼 있다는 전제이므로, 최초 프로필 설정 시점에 <strong>디렉토리에서 자동으로 가져와 읽기 전용으로 저장</strong>함. 다만 이 화면(최초 설정)에서는 값을 화면에 노출하지 않고 안내 문구로만 짧게 언급 — 실제 값 확인은 "내 정보" 화면(신규)에서 하도록 함(이 화면은 최소 정보만 빠르게 입력받는 데 집중, 상단 계정 카드는 이름·이메일 2줄만 유지). 값이 틀려도 이 화면/앱에서 수정 불가 — 사내 HR/IT 시스템에서 갱신해야 함. 실제 구현 시 디렉토리 동기화 배치/API 연동 필요(<code>db_model_mvp.md</code> USER 테이블에 동기화 소스·최종 동기화 시각 필드 추가 고려)</li>
+    <li>반면 <code>phone</code>(휴대폰), <code>extension</code>(내선번호), <code>messenger_id</code>는 <strong>회사 디렉토리에 없다고 가정하고 계속 수동 입력</strong>으로 유지 — 내선번호·메신저ID는 사내 메신저(Slack/Teams 등) 쪽 정보라 SSO/HRIS 표준 속성에 보통 없음, 휴대폰도 회사마다 동기화 여부가 달라 안전하게 수동 입력 유지</li>
+    <li>필수 입력 최소화 — 휴대폰만 필수, 내선번호·메신저ID·프로필사진은 전부 선택 입력(데모에서는 휴대폰 입력 시 "시작하기" 버튼 활성화). 실제 필수 필드 정책은 재확인 필요</li>
+    <li>프로필 사진(<code>profile_image_url</code>)은 <strong>SSO/Google 계정에 저장된 프로필 사진을 기본값으로 가져온다는 전제</strong> — 그래서 "선택"이 아니라 아바타 위 작은 연필 아이콘(<code>avatar-edit-btn</code>)으로 "필요할 때만 변경"하는 형태로 설계함. 이미 기본값이 채워져 있다는 전제라 "나중에 하기"(건너뛰기) 개념은 제거함. 계정에 사진이 아예 없는 경우엔 기존 화면들과 동일하게 이름 첫 글자 이니셜 아바타로 대체 표시</li>
+    <li>"시작하기" 제출 시 확인 팝업 없이 바로 저장 후 <strong>온보딩(간단 사용법) 화면(신규)</strong>으로 이동 — 최초 사용자에게만 1회 노출되는 흐름이라 스킵 확인 팝업까지 넣으면 절차가 과해진다고 판단</li>
+    <li>휴대폰번호·내선번호 입력 시 숫자만 입력해도 <code>010-1234-5678</code> 형태로 <strong>자동 하이픈 포맷팅</strong> 적용(<code>formatPhoneNumber()</code>). 와이어프레임은 자릿수 기반 단순 규칙(4자리 이하는 그대로, 이후 3-3-4/3-4-4 자릿수로 하이픈 삽입)이라 실제 구현 시에는 지역번호·내선 자리수 등 실제 규칙에 맞는 포맷 라이브러리(예: libphonenumber) 적용 및 커서 위치 처리 보강 필요</li>
+    <li>이 와이어프레임은 단일 화면 목업이라 실제 이미지 업로드 대신 <strong>토스트로 대체 시연</strong>함</li>
+  </ul>
+</div>
+
+<script>
+  const phoneInput = document.getElementById("phoneInput");
+  const extInput = document.getElementById("extInput");
+  const submitBtn = document.getElementById("submitBtn");
+  const formBodyEl = document.getElementById("formBody");
+  const footerEl = document.getElementById("footer");
+
+  // 아래에 더 볼 내용이 남아있을 때만 버튼 영역 위에 그림자로 경계 표시 (이 화면은 내용이 짧아 보통은 표시되지 않음)
+  function updateFooterBoundary() {
+    const atBottom = formBodyEl.scrollTop + formBodyEl.clientHeight >= formBodyEl.scrollHeight - 2;
+    footerEl.classList.toggle("show-boundary", !atBottom);
+  }
+  formBodyEl.addEventListener("scroll", updateFooterBoundary);
+
+  // 숫자만 입력받아 전화번호 형식(예: 010-1234-5678)으로 자동 변환
+  function formatPhoneNumber(raw) {
+    const digits = raw.replace(/\D/g, "").slice(0, 11);
+    if (digits.length <= 4) return digits;
+    if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    if (digits.length <= 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+  }
+  function attachAutoFormat(input) {
+    input.addEventListener("input", () => {
+      const caretWasAtEnd = input.selectionEnd === input.value.length;
+      input.value = formatPhoneNumber(input.value);
+      if (caretWasAtEnd) input.setSelectionRange(input.value.length, input.value.length);
+    });
+  }
+  attachAutoFormat(phoneInput);
+  attachAutoFormat(extInput);
+
+  function updateSubmitState() {
+    submitBtn.disabled = !phoneInput.value.trim();
+  }
+  phoneInput.addEventListener("input", updateSubmitState);
+
+  const toast = document.getElementById("routeToast");
+  let toastTimer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 1600);
+  }
+
+  document.getElementById("uploadBtn").addEventListener("click", () => {
+    showToast("사진 변경 다이얼로그(데모 생략)");
+  });
+
+  submitBtn.addEventListener("click", () => {
+    if (submitBtn.disabled) return;
+    showToast("프로필 저장됨 → 온보딩(간단 사용법) 화면으로 이동");
+  });
+
+  updateFooterBoundary();
+</script>
+
+</body>
+</html>

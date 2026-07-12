@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>와이어프레임 — 회의 대시보드 화면</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #1a1a1a;
+    --border-light: #c9c9c9;
+    --page-bg: #e9e9e7;
+    --card-bg: #ffffff;
+    --accent-red: #c0392b;
+    --accent-green: #1e7a3d;
+    --accent-amber: #9c6f00;
+    --accent-amber-bg: #fffaeb;
+    --accent-amber-border: #f2cb5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 16px;
+    background: var(--page-bg);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .frame-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+  .app-card {
+    width: 100%;
+    max-width: 390px;
+    background: var(--card-bg);
+    border: 1.5px solid var(--border);
+    height: 844px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .status-bar {
+    height: 24px;
+    flex-shrink: 0;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .status-icons { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+  .screen-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    position: relative;
+  }
+  .tab-bar {
+    height: 56px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-light);
+    background: #fafaf9;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-around;
+    padding-top: 8px;
+  }
+  .tab-bar-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    font-size: 9.5px;
+    color: var(--muted);
+  }
+  .tab-bar-item.active { color: var(--ink); font-weight: 700; }
+  .notif-icon-wrap { position: relative; display: inline-flex; }
+  .notif-dot {
+    position: absolute;
+    top: -1px; right: -1px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #d33;
+    border: 1px solid var(--card-bg);
+  }
+
+  .toast {
+    position: absolute;
+    bottom: 101px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--ink);
+    color: #fff;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    white-space: nowrap;
+    max-width: 320px;
+    text-align: center;
+    z-index: 45;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 헤더 */
+  .header {
+    padding: 14px 16px 0;
+    border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+  }
+  .back-arrow {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink);
+  }
+  .user-name { font-size: 13px; font-weight: 700; line-height: 1.2; }
+  .user-id-block { display: flex; align-items: center; gap: 7px; }
+  .avatar-md { width: 24px; height: 24px; font-size: 10.5px; }
+  .badge-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+  .badge {
+    font-size: 9.5px;
+    padding: 2px 7px;
+    border: 1px solid var(--ink);
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .meeting-title { font-size: 18px; font-weight: 700; margin: 0 0 10px; line-height: 1.3; }
+  .avatar {
+    border-radius: 50%;
+    border: 1px solid var(--border-light);
+    background: #f0f0ee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--ink);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .avatar-sm { width: 20px; height: 20px; font-size: 9px; }
+
+  /* 단계 스테퍼 */
+  .stepper {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    flex-shrink: 0;
+    border-bottom: 1px dashed var(--border-light);
+  }
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    gap: 4px;
+  }
+  .step-dot {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-light);
+    background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .step.done .step-dot { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .step.current .step-dot { border-color: var(--ink); color: var(--ink); }
+  .step-label { font-size: 9.5px; color: var(--muted); text-align: center; }
+  .step.done .step-label, .step.current .step-label { color: var(--ink); font-weight: 700; }
+  .step-line { flex: 0 0 auto; width: 100%; height: 1.5px; background: var(--border-light); margin-top: -20px; }
+
+  /* 데모 컨트롤 (실제 앱 UI 아님) */
+  .demo-controls {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    background: #fff8e6;
+    border-bottom: 1px solid #e0c97a;
+    font-size: 10px;
+    color: #7a5c00;
+  }
+  .demo-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+  .demo-chip {
+    padding: 3px 8px;
+    border: 1px solid #c9a63e;
+    background: #fff;
+    color: #7a5c00;
+    font-size: 9.5px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .demo-chip.active { background: #7a5c00; color: #fff; }
+
+  /* 본문 스크롤 영역 */
+  .dash-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 16px 16px;
+    min-height: 60px;
+  }
+  .section { margin-bottom: 18px; }
+  .confirmed-banner {
+    border: 1.5px solid var(--ink);
+    background: #fff;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    text-align: center;
+  }
+  .confirmed-banner-label { font-size: 10.5px; color: var(--muted); font-weight: 700; letter-spacing: 0.02em; margin-bottom: 4px; }
+  .confirmed-banner-time { font-size: 17px; font-weight: 700; color: var(--ink); }
+  .section-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .section-sub { font-size: 10.5px; color: var(--muted); font-weight: 400; }
+
+  .participant-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 0;
+    border-bottom: 1px solid #f0f0ee;
+    font-size: 12px;
+  }
+  .participant-left { display: flex; align-items: center; gap: 7px; }
+  .resp-chip {
+    font-size: 9.5px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+  .resp-chip.done { background: #eaf6ee; color: var(--accent-green); }
+  .resp-chip.pending { background: #fdeeea; color: var(--accent-red); }
+  .participant-right { display: flex; align-items: center; gap: 6px; }
+  .remind-btn {
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border: 1px solid var(--ink);
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .remind-btn:active { opacity: 0.8; }
+  .remind-btn.sent { border-color: var(--border-light); color: var(--muted); cursor: default; }
+  .bulk-remind-btn {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border: 1px solid var(--ink);
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .bulk-remind-btn:active { opacity: 0.8; }
+  .role-group-label { font-size: 10.5px; color: var(--muted); margin: 8px 0 2px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; }
+  .muted-box {
+    font-size: 11.5px;
+    color: var(--muted);
+    padding: 10px;
+    border: 1px dashed var(--border-light);
+    text-align: center;
+  }
+
+  .candidate-row {
+    border: 1px solid var(--border-light);
+    padding: 10px 11px;
+    margin-bottom: 8px;
+    position: relative;
+  }
+  .candidate-row.top { border-color: var(--ink); border-width: 1.5px; }
+  .candidate-top-line { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+  .candidate-time { font-size: 12.5px; font-weight: 700; }
+  .top-pick-tag {
+    font-size: 8.5px;
+    padding: 1px 6px;
+    background: var(--ink);
+    color: #fff;
+    font-weight: 700;
+    margin-left: 6px;
+  }
+  .hard-pass { color: var(--accent-green); font-size: 10.5px; font-weight: 700; display: flex; align-items: center; gap: 3px; }
+  .hard-fail { color: var(--accent-red); font-size: 10.5px; font-weight: 700; display: flex; align-items: center; gap: 3px; }
+  .score-bar-wrap { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .score-bar-track { flex: 1; height: 5px; background: #eee; }
+  .score-bar-fill { height: 100%; background: var(--ink); }
+  .score-num { font-size: 10px; color: var(--muted); width: 30px; text-align: right; }
+  .candidate-actions { display: flex; justify-content: flex-end; }
+  .mini-btn {
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border: 1px solid var(--ink);
+    background: #fff;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .mini-btn:active { opacity: 0.8; }
+  .mini-btn.disabled { border-color: var(--border-light); color: var(--border-light); cursor: default; }
+
+  .mitigation-box {
+    border: 1px dashed var(--accent-amber-border);
+    background: var(--accent-amber-bg);
+    padding: 10px 11px;
+    font-size: 11px;
+    color: var(--accent-amber);
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+
+  .shortlist-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid var(--border-light);
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    font-size: 11.5px;
+  }
+  .shortlist-time { font-weight: 700; }
+  .shortlist-resp { display: flex; gap: 4px; }
+  .resp-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .resp-dot.available { background: var(--accent-green); }
+  .resp-dot.unavailable { background: var(--accent-red); }
+  .resp-dot.hidden { background: none; border: 1px dashed var(--border-light); }
+  .shortlist-legend { font-size: 10px; color: var(--muted); margin-bottom: 8px; }
+  .shortlist-legend .resp-dot { display: inline-block; margin: 0 2px -1px 0; }
+
+  .mode-box {
+    border: 1px solid var(--border-light);
+    padding: 10px 11px;
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .mode-box .mode-value { color: var(--ink); font-weight: 700; font-size: 13px; }
+
+  .room-box {
+    border: 1px solid var(--ink);
+    padding: 12px;
+  }
+  .room-name { font-size: 13.5px; font-weight: 700; margin-bottom: 3px; }
+  .room-meta { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .room-status-tag {
+    display: inline-block;
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .room-status-tag.waiting { background: var(--accent-amber-bg); color: var(--accent-amber); }
+  .room-status-tag.approved { background: #eaf6ee; color: var(--accent-green); }
+  .room-actions { display: flex; gap: 8px; margin-top: 8px; }
+  .room-actions button { flex: 1; }
+  .btn-secondary {
+    border: 1px solid var(--ink);
+    background: #fff;
+    color: var(--ink);
+    padding: 8px;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-primary-sm {
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: #fff;
+    padding: 8px;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .video-link-line { font-size: 11px; color: var(--muted); margin-top: 8px; word-break: break-all; }
+
+  .reschedule-line { font-size: 11.5px; color: var(--muted); }
+  .reschedule-warn {
+    margin-top: 8px;
+    border: 1px dashed var(--accent-amber-border);
+    background: var(--accent-amber-bg);
+    padding: 9px 10px;
+    font-size: 11px;
+    color: var(--accent-amber);
+    line-height: 1.5;
+  }
+
+  /* 하단 고정 액션 */
+  .footer {
+    flex-shrink: 0;
+    padding: 10px 16px 12px;
+    background: #fafaf9;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: box-shadow 0.15s ease;
+  }
+  .footer.show-boundary {
+    box-shadow: 0 -3px 8px rgba(0,0,0,0.10);
+  }
+  .footer-btn {
+    width: 100%;
+    padding: 11px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    border: 1px solid var(--ink);
+  }
+  .footer-btn.primary { background: var(--ink); color: #fff; }
+  .footer-btn.secondary { background: #fff; color: var(--ink); }
+  .footer-btn.warn { background: #fff; color: var(--accent-red); border-color: var(--accent-red); }
+
+  /* 확인 팝업 */
+  .confirm-modal-overlay {
+    position: absolute; inset: 0; background: rgba(20,20,20,0.4);
+    z-index: 30; display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  .confirm-modal-overlay.show { display: flex; }
+  .confirm-modal-box { background: #fff; border: 1.5px solid var(--ink); width: 100%; padding: 18px; }
+  .confirm-modal-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+  .confirm-modal-body { font-size: 12px; color: var(--ink); line-height: 1.7; margin-bottom: 16px; }
+  .confirm-modal-actions { display: flex; gap: 8px; }
+  .confirm-modal-actions button {
+    flex: 1; padding: 10px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    font-family: inherit; border: 1px solid var(--ink);
+  }
+  .confirm-btn-cancel { background: #fff; color: var(--ink); }
+  .confirm-btn-ok { background: var(--ink); color: #fff; }
+
+  /* 회의실 변경 모달 (하단 슬라이드업) */
+  .room-modal {
+    position: absolute; inset: 0; background: rgba(20,20,20,0.4);
+    z-index: 30; display: flex; align-items: flex-end; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.22s ease;
+  }
+  .room-modal.show { opacity: 1; pointer-events: auto; }
+  .room-modal-box {
+    width: 100%; background: #fff; border: 1.5px solid var(--ink); border-bottom: none;
+    display: flex; flex-direction: column;
+    transform: translateY(100%); transition: transform 0.28s cubic-bezier(0.2,0.8,0.3,1);
+  }
+  .room-modal.show .room-modal-box { transform: translateY(0); }
+  .room-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border-light); }
+  .room-modal-title { font-size: 13.5px; font-weight: 700; }
+  .room-modal-close { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .room-option {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 14px; border-bottom: 1px solid #f0f0ee; font-size: 12px; cursor: pointer;
+  }
+  .room-option:active { background: #fafaf9; }
+  .room-option-name { font-weight: 700; }
+  .room-option-meta { font-size: 10.5px; color: var(--muted); }
+
+  /* 구현 노트 */
+  .dev-notes {
+    width: 100%;
+    max-width: 390px;
+    margin-top: 24px;
+    border: 1px dashed var(--border);
+    padding: 16px 18px;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--ink);
+    background: #fff;
+  }
+  .dev-notes h3 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .dev-notes code { background: #f0f0ee; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  .dev-notes ul { margin: 4px 0 12px; padding-left: 18px; }
+  .dev-notes ul:last-child { margin-bottom: 0; }
+  .dev-notes .warn { color: #8a4b00; }
+</style>
+</head>
+<body>
+
+<div class="frame-label">화면 5 · 회의 대시보드 (주최자 전용) — MVP</div>
+
+<div class="app-card">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span class="status-icons">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19v-3M9 19v-6M14 19v-9M19 19V5"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5a15 15 0 0118 0"/><path d="M6.2 12a10.5 10.5 0 0111.6 0"/><path d="M9.5 15.5a5.8 5.8 0 015 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.2v3.6"/><rect x="4" y="9" width="10" height="6" fill="currentColor" stroke="none"/></svg>
+    </span>
+  </div>
+
+  <div class="screen-content">
+    <div class="header">
+      <div class="header-top">
+        <div class="back-arrow"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></div>
+        <div class="user-id-block">
+          <span class="avatar avatar-md">김</span>
+          <span class="user-name">김민준</span>
+        </div>
+      </div>
+      <div class="badge-row"><div class="badge">주최자</div></div>
+      <div class="meeting-title">3분기 로드맵 논의</div>
+    </div>
+
+    <div class="stepper" id="stepper"><!-- JS로 렌더링 --></div>
+
+    <div class="demo-controls">
+      <div class="demo-row" id="stageDemoRow">
+        <span class="demo-chip" data-stage="필수응답중">필수응답중</span>
+        <span class="demo-chip" data-stage="선택확인중">선택확인중</span>
+        <span class="demo-chip" data-stage="확정">확정</span>
+      </div>
+      <div class="demo-row" id="rescheduleDemoRow" style="display:none;">
+        재조율 횟수:
+        <span class="demo-chip" data-reschedule="0">0회</span>
+        <span class="demo-chip" data-reschedule="1">1회</span>
+        <span class="demo-chip" data-reschedule="2">2회</span>
+        <span class="demo-chip" data-reschedule="3">3회(한도)</span>
+      </div>
+    </div>
+
+    <div class="dash-body" id="dashBody"><!-- JS로 렌더링 --></div>
+
+    <div class="toast" id="dashToast"></div>
+
+    <div class="footer" id="footerActions"><!-- JS로 렌더링 --></div>
+
+    <div class="confirm-modal-overlay" id="confirmOverlay">
+      <div class="confirm-modal-box">
+        <div class="confirm-modal-title" id="confirmTitle"></div>
+        <div class="confirm-modal-body" id="confirmBody"></div>
+        <div class="confirm-modal-actions">
+          <button type="button" class="confirm-btn-cancel" id="confirmCancelBtn">취소</button>
+          <button type="button" class="confirm-btn-ok" id="confirmOkBtn">확인</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="room-modal" id="roomModal">
+      <div class="room-modal-box">
+        <div class="room-modal-header">
+          <span class="room-modal-title">다른 회의실로 변경</span>
+          <span class="room-modal-close" id="roomModalClose"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span>
+        </div>
+        <div id="roomOptionList"><!-- JS로 렌더링 --></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/></svg>예약</div>
+    <div class="tab-bar-item active"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>내 회의</div>
+    <div class="tab-bar-item"><span class="notif-icon-wrap"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10.5a6 6 0 1112 0c0 4.2 1.5 5.5 1.5 5.5h-15S6 14.7 6 10.5z"/><path d="M9.7 18.5a2.3 2.3 0 004.6 0"/></svg><span class="notif-dot"></span></span>알림</div>
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20c0-4.14 3.36-7.5 7.5-7.5s7.5 3.36 7.5 7.5"/></svg>내 정보</div>
+  </div>
+</div>
+
+<div class="dev-notes">
+  <h3>구현 노트 (Claude Code 참고용)</h3>
+  <ul>
+    <li>이 화면은 <code>PARTICIPANT.role</code>과 무관하게 <code>MEETING.organizer_id</code> === 현재 로그인 사용자일 때만 접근 가능(주최자 전용). 상단 <strong>[데모 전용 컨트롤]</strong> 박스는 <code>MEETING.stage</code>(필수응답중/선택확인중/확정)에 따라 화면 구성이 크게 달라지는 것을 한 파일로 보여주기 위한 와이어프레임 전용 장치이며 실제 화면에는 없음 — 실제로는 서버 상태값 하나로 결정됨</li>
+    <li><strong>참가자 응답 현황</strong>: 필수 참석자는 항상 표시, 선택 참석자 섹션은 <code>stage</code>가 선택확인중 이상으로 전환된 뒤부터 응답 현황이 채워짐(그 전엔 "필수 응답 완료 후 시작" 안내만). 각 참가자 <code>responded_at</code> 유무로 완료/미응답 표시</li>
+    <li><strong>"리마인드" 버튼(신규)</strong>: 마감 임박 시 시스템이 자동으로 보내는 리마인드(<code>NOTIFICATION</code> type: 마감임박)와는 별개로, 주최자가 원하는 시점에 <strong>미응답자 개별 또는 "미응답자 전체 리마인드" 버튼으로 한 번에</strong> 응답요청 알림(type: 응답요청, db_model_mvp.md에 추가함)을 즉시 보낼 수 있음. 이미 응답완료한 참석자에겐 노출 안 됨. 한 번 보내면 "전송됨"으로 바뀌고 재전송 버튼은 사라짐(중복 알림 방지) — 실제 구현에서는 일정 시간 경과 후 재전송 가능하게 할지 등 쿨다운 정책은 별도 결정 필요. 다른 주요 액션과 달리 되돌리기 쉬운 가벼운 액션이라 확인 팝업 없이 클릭 즉시 전송·토스트 피드백 처리. <strong>데모 편의를 위해</strong> 리마인드를 보내면 일정 시간 후(1.8초~) 해당 참석자가 실제로 응답을 완료한 것처럼 자동 전환되도록 만들어, "전원 응답완료" 시 다음 단계로 넘어가는 화면까지 이 화면 하나에서 계속 지켜볼 수 있음 — 실제 서비스에서는 당연히 참석자가 직접 화면 3·12에서 응답해야 반영되는 것이며 리마인드를 보냈다고 자동으로 응답 처리되는 기능이 아님(데모 전용 시뮬레이션일 뿐)</li>
+    <li><strong>후보 시간 순위</strong>(필수응답중 단계): <code>SLOT_RESPONSE</code> 집계로 하드 제약(누군가 "불가"로 표시) 통과 여부와 소프트 선호 점수("가능"·"기피" 가중 평균, 스코어링 알고리즘은 서버 로직 별도 설계 필요 — 이 와이어프레임은 데모용 정적 점수만 표시)를 계산해 순위 표시. 주최자가 <strong>"이 시간으로 확정"</strong>을 누르면 필수 참석자 전원 응답을 기다리지 않고 즉시 확정 가능(확인 팝업 포함) — 조기 확정은 스펙의 "단계 조기 진행" 권한과 별개로, 주최자가 원하는 시점에 항상 강제 확정할 수 있는 액션으로 이 와이어프레임에서 추가함</li>
+    <li class="warn"><strong>완화요청 상태 박스</strong>: 하드 제약을 통과하는 슬롯이 전혀 없을 때 노출된다고 가정(화면 6 완화요청 응답 트리거 조건과 연동). 스펙 화면 5는 "완화요청 발송 상태 확인"이라고만 되어 있고 정확한 노출 조건·문구는 명시돼 있지 않아 이 와이어프레임에서 위와 같이 가정함</li>
+    <li><strong>압축 후보 확인 현황</strong>(선택확인중 단계부터): <code>TIME_SLOT.is_shortlisted=true</code>인 5개 슬롯별로 선택 참석자들의 가능(초록)/불가(빨강) 상태를 점으로 표시하되, <strong>"응답완료" 버튼을 아직 안 누른 참석자는 점을 빈 테두리로 가려서 표시</strong>(값이 있어도 미노출). <code>SLOT_RESPONSE</code>는 화면 3과 동일하게 레코드가 없으면 기본값 "가능"으로 처리되므로(db_model_mvp.md, wireframe_04와 동일 규칙) 완료 전 참석자의 후보별 값을 그대로 보여주면 "기본값일 뿐인데 이미 응답한 것"처럼 보여 혼동을 줄 수 있음 — 그래서 완료한 참석자의 점만 노출해 상단 "응답완료 n/m" 숫자와 항상 일치하도록 정리함</li>
+    <li><strong>회의 형태</strong>(<code>MEETING.mode</code>)는 필수 참석자 전원 응답 완료 시점(선택확인중 전환)에 계산되므로 필수응답중 단계에서는 "계산 전" 상태로 표시, 그 이후 단계부터 계산된 값(오프라인/온라인/하이브리드)과 판단 근거 요약 문구 표시</li>
+    <li><strong>확정된 회의 시간 배너(신규)</strong>: 확정 단계로 전환되면 화면 최상단에 "확정된 회의 시간"을 크게 강조 표시(<code>MEETING.confirmed_slot_id</code> → <code>TIME_SLOT.start_time</code>/<code>end_time</code>). 원래 스펙 화면 5의 "표시 데이터" 목록엔 회의실·모드·재조율 횟수는 있었지만 정작 <strong>몇 시로 확정됐는지 자체가 빠져 있어</strong> — 어느 후보 시간으로 확정됐는지 한눈에 안 보이면 대시보드로서 의미가 없으므로 화면과 screen_specs.md 화면 5 "표시 데이터"에 함께 추가함</li>
+    <li><strong>회의실/화상링크 자동 매칭 결과</strong>는 확정 단계에서만 노출. "이대로 승인"/"다른 회의실로 변경" 두 액션 제공 — 변경 시 대안 회의실 목록을 하단 슬라이드업 팝업으로 노출(안건 등록 화면의 팝업과 동일한 인터랙션 패턴 재사용). 적합한 회의실이 없어 온라인 전환된 경우는 회의실 박스 대신 화상링크만 표시하는 것으로 가정(이 와이어프레임엔 미시연 — 데모 데이터는 회의실 매칭 성공 케이스만 포함)</li>
+    <li><strong>재조율 횟수</strong>(<code>MEETING.reschedule_count</code>)는 확정 단계 하단에 항상 표시. <strong>2회 이상</strong>이면 "수동 조정 화면으로 이동" 버튼과 경고 문구가 추가로 노출됨(스펙 db_model_mvp.md "reschedule_count ≥ 2가 되면 자동 재조율 대신 주최자 수동 처리로 전환" 규칙 반영) — 상단 데모 컨트롤의 "재조율 횟수" 칩으로 0/1/2/3(한도) 케이스를 모두 확인 가능. <strong>"재조율 시도" 버튼(신규)</strong>: 이 화면엔 원래 재조율 발생을 실제로 트리거하는 액션이 없어 <code>reschedule_count</code>가 항상 데모 컨트롤로만 세팅되던 문제가 있었음(open_decisions_tracker.md A4) — 재조율 이력 섹션에 실제로 카운트를 증가시키는 버튼을 추가하고, screen_specs.md "재조율 자동화(1회 자동 + 2회 수동)" 규칙대로 1회차는 자동, 2·3회차는 수동으로 구분 표시하며, 총 3회(자동 1회+수동 2회) 도달 시 더 이상 진행 불가 + "담당자에게 문의" 안내로 전환되도록 함(실제 백엔드 에스컬레이션 없이 UI 상태만 데모)</li>
+    <li><strong>"다음 단계로 강제 진행"</strong> 버튼은 현재 단계 대상자가 전원 응답하지 않았어도 주최자가 원하면 즉시 다음 단계로 넘길 수 있는 액션(스펙 "단계 조기 진행 여부와 관계없이... 수동으로 다음 단계로 강제 진행하는 버튼 제공"). 확정 단계에서는 이 버튼이 사라지고 대신 회의실 승인 액션이 그 자리를 대신함. 앱 전체 공통 규칙(주요 액션 확인 팝업)에 따라 클릭 시 확인 팝업 노출 — 스펙의 확인 팝업 대상 목록에 이 액션이 명시적으로 나열되어 있진 않지만, 되돌리기 어려운 주최자 액션이라 동일 패턴을 적용함</li>
+    <li>이 버튼과는 별개로, <strong>참석자 전원이 자연스럽게 다 응답을 마치는 정상 케이스</strong>도 확인할 수 있도록 필수응답중/선택확인중 단계에서 참가자 행을 탭하면 그 사람의 응답완료 상태가 토글되는 데모 인터랙션을 추가함(실제 화면에는 없는 조작이며, 응답 자체는 참석자 각자의 화면(3·12)에서 이뤄짐 — 여기서는 조기 진행 결과만 시뮬레이션). 필수 참석자 전원이 응답완료되면 선택확인중으로, 선택 참석자 전원이 응답완료되면 압축 후보 중 "불가" 표시가 가장 적은 슬롯으로 자동 확정되어 스펙의 "전원 응답완료 시 마감 전이라도 조기 진행" 규칙을 그대로 재현함</li>
+    <li><code>PARTICIPANT.confirmation_status</code>='확정'은 회의 시간이 최종 확정되는 순간 시스템이 전체 확정 참석자에게 자동으로 기록함(화면9의 "참석으로 변경"은 예외적 재전환 경로로 별도 유지)</li>
+  </ul>
+</div>
+
+<script>
+  // ── 데모 상태 ──────────────────────────────────────────
+  let currentStage = "필수응답중"; // 필수응답중 | 선택확인중 | 확정
+  let rescheduleCount = 0; // 확정 단계 데모용: 0 | 1 | 2 | 3(한도 소진)
+  const RESCHEDULE_CAP = 3; // 자동 재조율 1회 + 수동 재조율 2회 = 총 3회 한도 (screen_specs.md, db_model_mvp.md 271행)
+  let roomApproved = false;
+  let roomName = "3층 회의실 A";
+  let roomMeta = "8인 · 화이트보드 · 화상장비";
+  let confirmedTime = null; // 확정 단계 진입 시 채워짐
+
+  const REQUIRED_PARTICIPANTS = [
+    { name: "김민준", responded: true, isOrganizer: true },
+    { name: "박서연", responded: true },
+    { name: "이지훈", responded: false },
+    { name: "최유나", responded: true },
+  ];
+  const OPTIONAL_PARTICIPANTS = [
+    { name: "정다은", responded: true },
+    { name: "한소희", responded: false },
+  ];
+
+  const CANDIDATES = [
+    { time: "7/14(화) 14:00~15:00", hardPass: true, score: 92, top: true },
+    { time: "7/15(수) 10:00~11:00", hardPass: true, score: 85, top: false },
+    { time: "7/14(화) 16:00~17:00", hardPass: false, score: null, top: false },
+  ];
+
+  // SLOT_RESPONSE와 동일 규칙: 응답 레코드가 없으면 기본값 "가능"으로 처리
+  // (wireframe_04_shortlist_confirm.html과 동일 — "미응답" 상태는 데이터상 존재하지 않음)
+  const SHORTLIST = [
+    { time: "7/14(화) 14:00", resp: ["available", "available"] },
+    { time: "7/15(수) 10:00", resp: ["available", "available"] },
+    { time: "7/15(수) 15:00", resp: ["unavailable", "available"] },
+    { time: "7/16(목) 09:00", resp: ["available", "available"] },
+    { time: "7/16(목) 13:00", resp: ["available", "unavailable"] },
+  ];
+
+  const ALT_ROOMS = [
+    { name: "5층 회의실 C", meta: "6인 · 화이트보드" },
+    { name: "2층 회의실 B", meta: "10인 · 화상장비 · 프로젝터" },
+    { name: "3층 회의실 A", meta: "8인 · 화이트보드 · 화상장비" },
+  ];
+
+  const STAGE_ORDER = ["필수응답중", "선택확인중", "확정"];
+
+  const stepperEl = document.getElementById("stepper");
+  const dashBodyEl = document.getElementById("dashBody");
+  const footerEl = document.getElementById("footerActions");
+  const rescheduleDemoRow = document.getElementById("rescheduleDemoRow");
+
+  // 아래에 더 볼 내용이 남아있을 때만 버튼 영역 위에 그림자로 경계 표시
+  function updateFooterBoundary() {
+    const atBottom = dashBodyEl.scrollTop + dashBodyEl.clientHeight >= dashBodyEl.scrollHeight - 2;
+    footerEl.classList.toggle("show-boundary", !atBottom);
+  }
+  dashBodyEl.addEventListener("scroll", updateFooterBoundary);
+
+  function renderStepper() {
+    const idx = STAGE_ORDER.indexOf(currentStage);
+    stepperEl.innerHTML = STAGE_ORDER.map((s, i) => {
+      let cls = "step";
+      if (i < idx) cls += " done";
+      else if (i === idx) cls += " current";
+      const dotContent = i < idx
+        ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`
+        : (i + 1);
+      return `<div class="${cls}"><div class="step-dot">${dotContent}</div><div class="step-label">${s}</div></div>`;
+    }).join("");
+  }
+
+  function requiredDoneCount() {
+    return REQUIRED_PARTICIPANTS.filter((p) => p.responded).length;
+  }
+  function optionalDoneCount() {
+    return OPTIONAL_PARTICIPANTS.filter((p) => p.responded).length;
+  }
+
+  function remindBtnHtml(p, kind, i) {
+    if (p.responded) return "";
+    if (p.reminded) return `<span class="remind-btn sent">전송됨</span>`;
+    return `<button type="button" class="remind-btn" data-remind-${kind}="${i}">리마인드</button>`;
+  }
+
+  function renderParticipantSection() {
+    const reqClickable = currentStage === "필수응답중";
+    const reqPendingCount = REQUIRED_PARTICIPANTS.filter((p) => !p.responded).length;
+    const reqRows = REQUIRED_PARTICIPANTS.map((p, i) => `
+      <div class="participant-row">
+        <div class="participant-left" ${reqClickable ? `data-required-idx="${i}" style="cursor:pointer;"` : ""}>
+          <span class="avatar avatar-sm">${p.name[0]}</span>
+          <span>${p.name}${p.isOrganizer ? " (주최자)" : ""}</span>
+        </div>
+        <div class="participant-right">
+          ${reqClickable ? remindBtnHtml(p, "required", i) : ""}
+          <span class="resp-chip ${p.responded ? "done" : "pending"}">${p.responded ? "응답완료" : "미응답"}</span>
+        </div>
+      </div>`).join("");
+    const reqBulkBtn = reqClickable && reqPendingCount > 0
+      ? `<button type="button" class="bulk-remind-btn" id="bulkRemindRequired">미응답자 전체 리마인드</button>` : "";
+
+    let optionalHtml = "";
+    if (currentStage === "필수응답중") {
+      optionalHtml = `<div class="role-group-label">선택 참석자</div><div class="muted-box">필수 참석자 응답 완료 후 시작됩니다</div>`;
+    } else {
+      const optClickable = currentStage === "선택확인중";
+      const optPendingCount = OPTIONAL_PARTICIPANTS.filter((p) => !p.responded).length;
+      const optRows = OPTIONAL_PARTICIPANTS.map((p, i) => `
+        <div class="participant-row">
+          <div class="participant-left" ${optClickable ? `data-optional-idx="${i}" style="cursor:pointer;"` : ""}>
+            <span class="avatar avatar-sm">${p.name[0]}</span>
+            <span>${p.name}</span>
+          </div>
+          <div class="participant-right">
+            ${optClickable ? remindBtnHtml(p, "optional", i) : ""}
+            <span class="resp-chip ${p.responded ? "done" : "pending"}">${p.responded ? "응답완료" : "미응답"}</span>
+          </div>
+        </div>`).join("");
+      const optBulkBtn = optClickable && optPendingCount > 0
+        ? `<button type="button" class="bulk-remind-btn" id="bulkRemindOptional">미응답자 전체 리마인드</button>` : "";
+      optionalHtml = `<div class="role-group-label"><span>선택 참석자 (${optionalDoneCount()}/${OPTIONAL_PARTICIPANTS.length} 응답완료)</span>${optBulkBtn}</div>${optRows}`;
+    }
+
+    const hint = reqClickable || currentStage === "선택확인중"
+      ? `<div class="section-sub" style="margin-top:4px;">참석자 행을 탭하면 응답완료 상태를 시뮬레이션할 수 있어요(데모용) — 전원 완료되면 다음 단계로 자동 전환됩니다</div>`
+      : "";
+
+    return `
+      <div class="section">
+        <div class="section-title">참가자 응답 현황</div>
+        <div class="role-group-label"><span>필수 참석자 (${requiredDoneCount()}/${REQUIRED_PARTICIPANTS.length} 응답완료)</span>${reqBulkBtn}</div>
+        ${reqRows}
+        ${optionalHtml}
+        ${hint}
+      </div>`;
+  }
+
+  function renderCandidateSection() {
+    const hasHardFailOnly = !CANDIDATES.some((c) => c.hardPass);
+    const mitigationHtml = hasHardFailOnly
+      ? `<div class="mitigation-box">⚠ 이지훈님에게 변경요청 발송됨 · 응답 대기 중 (해당 시간대 하드 제약으로 표시한 항목에 완화 의사를 확인 중)</div>`
+      : "";
+
+    const rows = CANDIDATES.map((c, i) => `
+      <div class="candidate-row ${c.top ? "top" : ""}" data-idx="${i}">
+        <div class="candidate-top-line">
+          <span class="candidate-time">${c.time}${c.top ? '<span class="top-pick-tag">추천 1순위</span>' : ""}</span>
+          ${c.hardPass
+            ? `<span class="hard-pass"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>하드제약 통과</span>`
+            : `<span class="hard-fail"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>하드제약 미통과</span>`}
+        </div>
+        ${c.hardPass ? `
+        <div class="score-bar-wrap">
+          <div class="score-bar-track"><div class="score-bar-fill" style="width:${c.score}%"></div></div>
+          <span class="score-num">${c.score}점</span>
+        </div>
+        <div class="candidate-actions"><button type="button" class="mini-btn" data-confirm-slot="${i}">이 시간으로 확정</button></div>
+        ` : `<div class="candidate-actions"><button type="button" class="mini-btn disabled" disabled>확정 불가</button></div>`}
+      </div>`).join("");
+
+    return `
+      <div class="section">
+        <div class="section-title">후보 시간 순위<span class="section-sub">소프트 선호 점수 기준</span></div>
+        ${mitigationHtml}
+        ${rows}
+      </div>`;
+  }
+
+  function renderShortlistSection() {
+    // 아직 "응답완료"를 누르지 않은 참석자는 후보별 값이 있어도 점을 비워 표시(확정 신호 전이라 미노출)
+    const rows = SHORTLIST.map((s) => `
+      <div class="shortlist-row">
+        <span class="shortlist-time">${s.time}</span>
+        <span class="shortlist-resp">${s.resp.map((r, i) => `<span class="resp-dot ${OPTIONAL_PARTICIPANTS[i].responded ? r : "hidden"}"></span>`).join("")}</span>
+      </div>`).join("");
+    return `
+      <div class="section">
+        <div class="section-title">압축 후보 확인 현황<span class="section-sub">응답완료 ${optionalDoneCount()}/${OPTIONAL_PARTICIPANTS.length}</span></div>
+        <div class="shortlist-legend">
+          <span class="resp-dot available"></span>가능 · <span class="resp-dot unavailable"></span>불가 · <span class="resp-dot hidden"></span>응답완료 전(순서: 정다은→한소희)
+        </div>
+        ${rows}
+      </div>`;
+  }
+
+  function renderModeSection() {
+    if (currentStage === "필수응답중") {
+      return `
+      <div class="section">
+        <div class="section-title">회의 형태</div>
+        <div class="mode-box">계산 전 — 필수 참석자 응답이 완료되면 자동 계산됩니다</div>
+      </div>`;
+    }
+    return `
+      <div class="section">
+        <div class="section-title">회의 형태</div>
+        <div class="mode-box"><span class="mode-value">하이브리드</span><br>온라인 선택 2명 · 대면 선택 2명 → 온라인·대면 참석자가 모두 있어 하이브리드로 계산됨</div>
+      </div>`;
+  }
+
+  function renderRoomSection() {
+    if (currentStage !== "확정") return "";
+    return `
+      <div class="section">
+        <div class="section-title">회의실 / 화상링크</div>
+        <div class="room-box">
+          <span class="room-status-tag ${roomApproved ? "approved" : "waiting"}">${roomApproved ? "승인 완료" : "주최자 승인 대기"}</span>
+          <div class="room-name">${roomName}</div>
+          <div class="room-meta">${roomMeta} · 자동 매칭됨</div>
+          <div class="video-link-line">화상링크(하이브리드 자동 생성): meet.example.com/qtr-road-map</div>
+          <div class="room-actions">
+            <button type="button" class="btn-secondary" id="roomChangeBtn">다른 회의실로 변경</button>
+            <button type="button" class="btn-primary-sm" id="roomApproveBtn" ${roomApproved ? "disabled" : ""}>${roomApproved ? "승인됨" : "이대로 승인"}</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderRescheduleSection() {
+    if (currentStage !== "확정") return "";
+    const capped = rescheduleCount >= RESCHEDULE_CAP;
+    let warn = "";
+    if (capped) {
+      warn = `<div class="reschedule-warn">⚠ 재조율 한도(자동 1회 + 수동 2회)에 도달했어요. 담당자에게 문의해주세요.</div>`;
+    } else if (rescheduleCount >= 2) {
+      warn = `<div class="reschedule-warn">변경요청이 모두 불가로 유지되었거나 재조율이 2회차에 도달해 자동 재조율 대신 <strong>주최자 수동 처리</strong>가 필요합니다.</div>`;
+    }
+    const kindLabel = rescheduleCount === 0
+      ? "(변경 없이 최초 확정)"
+      : rescheduleCount === 1
+      ? "(1회는 자동 재조율)"
+      : rescheduleCount === 2
+      ? "(2회차부터 수동 재조율 · 자동 1회+수동 1회 사용)"
+      : "(자동 1회+수동 2회 한도 소진)";
+    const attemptBtn = capped
+      ? `<button type="button" class="mini-btn disabled" disabled>재조율 시도 (한도 도달)</button>`
+      : `<button type="button" class="mini-btn" id="attemptRescheduleBtn">재조율 시도 (${rescheduleCount === 0 ? "자동" : "수동"})</button>`;
+    return `
+      <div class="section">
+        <div class="section-title">재조율 이력</div>
+        <div class="reschedule-line">지금까지 재조율 횟수: <strong>${rescheduleCount}회</strong> ${kindLabel}</div>
+        ${warn}
+        <div class="candidate-actions" style="margin-top:8px;">${attemptBtn}</div>
+      </div>`;
+  }
+
+  function formatConfirmedTimeDisplay(t) {
+    if (!t) return "";
+    return t.includes("~") ? t : `${t} (1시간)`;
+  }
+
+  function renderConfirmedBanner() {
+    if (currentStage !== "확정" || !confirmedTime) return "";
+    return `
+      <div class="confirmed-banner">
+        <div class="confirmed-banner-label">확정된 회의 시간</div>
+        <div class="confirmed-banner-time">${formatConfirmedTimeDisplay(confirmedTime)}</div>
+      </div>`;
+  }
+
+  function renderDashBody() {
+    dashBodyEl.innerHTML =
+      renderConfirmedBanner() +
+      renderParticipantSection() +
+      (currentStage === "필수응답중" ? renderCandidateSection() : "") +
+      (currentStage !== "필수응답중" ? renderShortlistSection() : "") +
+      renderModeSection() +
+      renderRoomSection() +
+      renderRescheduleSection();
+  }
+
+  function renderFooter() {
+    if (currentStage === "확정") {
+      const capped = rescheduleCount >= RESCHEDULE_CAP;
+      footerEl.innerHTML = `
+        ${rescheduleCount >= 2 ? `<button type="button" class="footer-btn warn" id="manualAdjustBtn">${capped ? "담당자에게 문의하기" : "수동 조정 화면(7)으로 이동"}</button>` : ""}
+      `;
+      if (!footerEl.innerHTML.trim()) {
+        footerEl.innerHTML = `<div class="reschedule-line" style="text-align:center;">확정된 회의입니다</div>`;
+      }
+    } else {
+      const nextStage = currentStage === "필수응답중" ? "선택확인중" : "확정";
+      footerEl.innerHTML = `<button type="button" class="footer-btn secondary" id="forceProgressBtn">다음 단계(${nextStage})로 강제 진행</button>`;
+    }
+    bindFooterEvents();
+  }
+
+  function bindFooterEvents() {
+    const forceBtn = document.getElementById("forceProgressBtn");
+    if (forceBtn) {
+      forceBtn.addEventListener("click", () => {
+        const nextStage = currentStage === "필수응답중" ? "선택확인중" : "확정";
+        openConfirm(
+          "다음 단계로 강제 진행하시겠습니까?",
+          `전원 응답을 기다리지 않고 즉시 "${nextStage}" 단계로 넘어갑니다. 아직 응답하지 않은 참석자에게는 더 이상 이 단계의 응답을 받지 않습니다.`,
+          () => {
+            currentStage = nextStage;
+            if (currentStage === "확정" && !confirmedTime) confirmedTime = computeBestConfirmedTime();
+            setActiveStageChip();
+            renderAll();
+            showToast(`→ ${nextStage} 단계로 전환됨`);
+          }
+        );
+      });
+    }
+    const manualBtn = document.getElementById("manualAdjustBtn");
+    if (manualBtn) {
+      manualBtn.addEventListener("click", () => {
+        showToast(rescheduleCount >= RESCHEDULE_CAP ? "→ 담당자 문의 접수됨(데모)" : "→ 수동 조정 화면(7)으로 이동");
+      });
+    }
+  }
+
+  dashBodyEl.addEventListener("click", (e) => {
+    const confirmSlotBtn = e.target.closest("[data-confirm-slot]");
+    if (confirmSlotBtn) {
+      const idx = Number(confirmSlotBtn.dataset.confirmSlot);
+      const c = CANDIDATES[idx];
+      openConfirm(
+        "이 시간으로 확정하시겠습니까?",
+        `${c.time}으로 회의를 확정합니다. 필수 참석자 전원의 응답을 기다리지 않고 지금 바로 확정 처리되며, 확정 후에는 회의실/화상링크가 자동으로 매칭됩니다.`,
+        () => {
+          confirmedTime = c.time;
+          currentStage = "확정";
+          setActiveStageChip();
+          renderAll();
+          showToast("→ 확정 단계로 전환됨");
+        }
+      );
+      return;
+    }
+    const roomApproveBtn = e.target.closest("#roomApproveBtn");
+    if (roomApproveBtn && !roomApproved) {
+      roomApproved = true;
+      renderDashBody();
+      showToast("✓ 회의실이 승인되었습니다");
+      return;
+    }
+    const roomChangeBtn = e.target.closest("#roomChangeBtn");
+    if (roomChangeBtn) {
+      openRoomModal();
+      return;
+    }
+    // 재조율 시도(참석자 불참 등으로 확정된 시간을 다시 조율해야 하는 상황을 시뮬레이션).
+    // rescheduleCount에 따라 1회차는 자동 재조율, 2·3회차는 주최자 수동 처리로 구분되며
+    // 총 3회(자동 1회+수동 2회)에 도달하면 더 이상 진행하지 못하고 담당자 문의로 안내됨
+    const attemptRescheduleBtn = e.target.closest("#attemptRescheduleBtn");
+    if (attemptRescheduleBtn) {
+      const isAuto = rescheduleCount === 0;
+      openConfirm(
+        isAuto ? "자동 재조율을 진행할까요?" : "수동 재조율을 진행할까요?",
+        isAuto
+          ? "참석자 불참 등으로 재조율이 필요합니다. 1회차는 시스템이 자동으로 다음 최적 후보 시간을 계산해 재확정합니다."
+          : "이미 자동 재조율(1회)을 사용했습니다. 이번 재조율은 주최자 수동 처리로 기록되며, 계산된 다음 최적 후보 시간으로 재확정합니다.",
+        () => {
+          rescheduleCount += 1;
+          confirmedTime = computeBestConfirmedTime();
+          roomApproved = false;
+          renderDashBody();
+          if (rescheduleCount >= RESCHEDULE_CAP) {
+            showToast("⚠ 재조율 한도 도달 · 담당자에게 문의해주세요");
+          } else {
+            showToast(isAuto ? "✓ 자동 재조율 완료 · 새 시간으로 재확정됨" : "✓ 수동 재조율 완료 · 새 시간으로 재확정됨");
+          }
+        }
+      );
+      return;
+    }
+
+    // 미응답자 개별 리마인드 — 주최자가 수동으로 응답 요청 알림(NOTIFICATION)을 보냄
+    const remindReqBtn = e.target.closest("[data-remind-required]");
+    if (remindReqBtn) {
+      const idx = Number(remindReqBtn.dataset.remindRequired);
+      REQUIRED_PARTICIPANTS[idx].reminded = true;
+      renderDashBody();
+      showToast(`✓ ${REQUIRED_PARTICIPANTS[idx].name}님에게 응답요청 알림을 보냈습니다`);
+      scheduleAutoRespond("required", idx, 1800);
+      return;
+    }
+    const remindOptBtn = e.target.closest("[data-remind-optional]");
+    if (remindOptBtn) {
+      const idx = Number(remindOptBtn.dataset.remindOptional);
+      OPTIONAL_PARTICIPANTS[idx].reminded = true;
+      renderDashBody();
+      showToast(`✓ ${OPTIONAL_PARTICIPANTS[idx].name}님에게 응답요청 알림을 보냈습니다`);
+      scheduleAutoRespond("optional", idx, 1800);
+      return;
+    }
+    const bulkRemindReqBtn = e.target.closest("#bulkRemindRequired");
+    if (bulkRemindReqBtn) {
+      const pendingIdx = REQUIRED_PARTICIPANTS.map((p, i) => i).filter((i) => !REQUIRED_PARTICIPANTS[i].responded);
+      pendingIdx.forEach((i) => (REQUIRED_PARTICIPANTS[i].reminded = true));
+      renderDashBody();
+      showToast(`✓ 미응답 필수 참석자 ${pendingIdx.length}명에게 응답요청 알림을 보냈습니다`);
+      pendingIdx.forEach((i, order) => scheduleAutoRespond("required", i, 1800 + order * 700));
+      return;
+    }
+    const bulkRemindOptBtn = e.target.closest("#bulkRemindOptional");
+    if (bulkRemindOptBtn) {
+      const pendingIdx = OPTIONAL_PARTICIPANTS.map((p, i) => i).filter((i) => !OPTIONAL_PARTICIPANTS[i].responded);
+      pendingIdx.forEach((i) => (OPTIONAL_PARTICIPANTS[i].reminded = true));
+      renderDashBody();
+      showToast(`✓ 미응답 선택 참석자 ${pendingIdx.length}명에게 응답요청 알림을 보냈습니다`);
+      pendingIdx.forEach((i, order) => scheduleAutoRespond("optional", i, 1800 + order * 700));
+      return;
+    }
+
+    // 참석자 행 탭 — 응답완료 상태 시뮬레이션(데모용). 전원 완료되면 스펙의
+    // "전원 응답완료 시 조기 진행" 규칙대로 다음 단계로 자동 전환됨
+    const reqRow = e.target.closest("[data-required-idx]");
+    if (reqRow && currentStage === "필수응답중") {
+      const idx = Number(reqRow.dataset.requiredIdx);
+      REQUIRED_PARTICIPANTS[idx].responded = !REQUIRED_PARTICIPANTS[idx].responded;
+      if (!tryAutoAdvanceRequired()) renderDashBody();
+      return;
+    }
+    const optRow = e.target.closest("[data-optional-idx]");
+    if (optRow && currentStage === "선택확인중") {
+      const idx = Number(optRow.dataset.optionalIdx);
+      OPTIONAL_PARTICIPANTS[idx].responded = !OPTIONAL_PARTICIPANTS[idx].responded;
+      if (!tryAutoAdvanceOptional()) renderDashBody();
+      return;
+    }
+  });
+
+  // ── 전원 완료 시 자동 진행 헬퍼(데모용 참석자 토글·리마인드 자동완료가 공통으로 사용) ──
+  function computeBestConfirmedTime() {
+    const best = SHORTLIST.reduce((acc, s) => {
+      const unavailCount = s.resp.filter((r) => r === "unavailable").length;
+      return !acc || unavailCount < acc.unavailCount ? { time: s.time, unavailCount } : acc;
+    }, null);
+    return best.time;
+  }
+  function tryAutoAdvanceRequired() {
+    if (!REQUIRED_PARTICIPANTS.every((p) => p.responded)) return false;
+    currentStage = "선택확인중";
+    setActiveStageChip();
+    renderAll();
+    showToast("필수 참석자 전원 응답완료 → 선택확인중 단계로 자동 전환");
+    return true;
+  }
+  function tryAutoAdvanceOptional() {
+    if (!OPTIONAL_PARTICIPANTS.every((p) => p.responded)) return false;
+    confirmedTime = computeBestConfirmedTime();
+    currentStage = "확정";
+    roomApproved = false;
+    setActiveStageChip();
+    renderAll();
+    showToast("선택 참석자 전원 응답완료 → 확정 단계로 자동 전환");
+    return true;
+  }
+
+  // 리마인드를 받은 참석자가 "일정 시간 후" 응답을 완료하는 것을 시뮬레이션.
+  // 그사이 데모 컨트롤로 단계를 바꿔버렸거나 이미 응답 완료된 경우는 건너뜀
+  function scheduleAutoRespond(kind, idx, delayMs) {
+    setTimeout(() => {
+      const list = kind === "required" ? REQUIRED_PARTICIPANTS : OPTIONAL_PARTICIPANTS;
+      const p = list[idx];
+      const relevantStage = kind === "required" ? "필수응답중" : "선택확인중";
+      if (!p || p.responded || currentStage !== relevantStage) return;
+      p.responded = true;
+      p.reminded = false;
+      const advanced = kind === "required" ? tryAutoAdvanceRequired() : tryAutoAdvanceOptional();
+      if (!advanced) {
+        renderDashBody();
+        showToast(`${p.name}님이 리마인드를 보고 응답을 완료했습니다`);
+      }
+    }, delayMs);
+  }
+
+  // ── 확인 팝업 ──────────────────────────────────────────
+  const confirmOverlay = document.getElementById("confirmOverlay");
+  const confirmTitleEl = document.getElementById("confirmTitle");
+  const confirmBodyEl = document.getElementById("confirmBody");
+  let pendingConfirmAction = null;
+
+  function openConfirm(title, body, onOk) {
+    confirmTitleEl.textContent = title;
+    confirmBodyEl.textContent = body;
+    pendingConfirmAction = onOk;
+    confirmOverlay.classList.add("show");
+  }
+  function closeConfirm() {
+    confirmOverlay.classList.remove("show");
+    pendingConfirmAction = null;
+  }
+  document.getElementById("confirmCancelBtn").addEventListener("click", closeConfirm);
+  document.getElementById("confirmOkBtn").addEventListener("click", () => {
+    const action = pendingConfirmAction;
+    closeConfirm();
+    if (action) action();
+  });
+
+  // ── 회의실 변경 모달 ──────────────────────────────────
+  const roomModal = document.getElementById("roomModal");
+  const roomOptionList = document.getElementById("roomOptionList");
+  function openRoomModal() {
+    roomOptionList.innerHTML = ALT_ROOMS.map((r) => `
+      <div class="room-option" data-room="${r.name}">
+        <div><div class="room-option-name">${r.name}</div><div class="room-option-meta">${r.meta}</div></div>
+        ${r.name === roomName ? '<span style="font-size:10px;color:var(--muted);">현재 선택됨</span>' : ""}
+      </div>`).join("");
+    roomModal.classList.add("show");
+  }
+  function closeRoomModal() { roomModal.classList.remove("show"); }
+  document.getElementById("roomModalClose").addEventListener("click", closeRoomModal);
+  roomOptionList.addEventListener("click", (e) => {
+    const opt = e.target.closest("[data-room]");
+    if (!opt) return;
+    const chosen = ALT_ROOMS.find((r) => r.name === opt.dataset.room);
+    roomName = chosen.name;
+    roomMeta = chosen.meta;
+    roomApproved = false;
+    closeRoomModal();
+    renderDashBody();
+    showToast(`→ ${roomName}(으)로 변경됨 · 재승인 필요`);
+  });
+
+  // ── 토스트 ──────────────────────────────────────────
+  const toastEl = document.getElementById("dashToast");
+  let toastTimer = null;
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1500);
+  }
+
+  // ── 데모 컨트롤 바인딩 ──────────────────────────────
+  function setActiveStageChip() {
+    document.querySelectorAll("#stageDemoRow .demo-chip").forEach((c) => c.classList.toggle("active", c.dataset.stage === currentStage));
+    rescheduleDemoRow.style.display = currentStage === "확정" ? "flex" : "none";
+  }
+  document.getElementById("stageDemoRow").addEventListener("click", (e) => {
+    const chip = e.target.closest(".demo-chip");
+    if (!chip) return;
+    currentStage = chip.dataset.stage;
+    if (currentStage === "확정" && !confirmedTime) confirmedTime = computeBestConfirmedTime();
+    setActiveStageChip();
+    renderAll();
+  });
+  document.getElementById("rescheduleDemoRow").addEventListener("click", (e) => {
+    const chip = e.target.closest(".demo-chip");
+    if (!chip) return;
+    rescheduleCount = Number(chip.dataset.reschedule);
+    document.querySelectorAll("#rescheduleDemoRow .demo-chip").forEach((c) => c.classList.toggle("active", Number(c.dataset.reschedule) === rescheduleCount));
+    renderAll();
+  });
+
+  function renderAll() {
+    renderStepper();
+    renderDashBody();
+    renderFooter();
+    dashBodyEl.scrollTop = 0; // 단계(화면)가 바뀔 때는 스크롤 위치와 무관하게 항상 맨 위부터 보여줌
+    updateFooterBoundary();
+  }
+
+  setActiveStageChip();
+  document.querySelector('#rescheduleDemoRow .demo-chip[data-reschedule="0"]').classList.add("active");
+  renderAll();
+  // ---- 하단 탭바 터치 이동 (전 화면 공통 패턴) ----
+  const TAB_ROUTES = {
+    "예약": "예약 화면(화면 17)",
+    "내 회의": "내 회의 화면(화면 1)",
+    "알림": "알림 화면(화면 11)",
+    "내 정보": "내 정보 화면(화면 16)",
+  };
+  document.querySelector(".tab-bar").addEventListener("click", (e) => {
+    const item = e.target.closest(".tab-bar-item");
+    if (!item || item.classList.contains("active")) return;
+    const label = item.textContent.trim();
+    if (TAB_ROUTES[label]) showToast(`→ ${TAB_ROUTES[label]}로 이동`);
+  });
+</script>
+
+</body>
+</html>

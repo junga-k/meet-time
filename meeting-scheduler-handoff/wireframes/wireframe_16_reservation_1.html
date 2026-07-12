@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>와이어프레임 — 예약 화면 (회의 예약 + 회의실 현황판)</title>
+<style>
+  :root {
+    --ink: #1a1a1a; --muted: #6b6b6b; --border: #1a1a1a; --border-light: #c9c9c9;
+    --page-bg: #e9e9e7; --card-bg: #ffffff; --accent-red: #c0392b; --accent-green: #1e7a3d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 16px; background: var(--page-bg);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    color: var(--ink); display: flex; flex-direction: column; align-items: center;
+  }
+  .frame-label { font-size: 12px; color: var(--muted); letter-spacing: 0.05em; margin-bottom: 10px; text-transform: uppercase; }
+  .app-card {
+    width: 100%; max-width: 390px; background: var(--card-bg);
+    border: 1.5px solid var(--border); height: 844px;
+    display: flex; flex-direction: column; position: relative; overflow: hidden;
+  }
+  .status-bar {
+    height: 24px; flex-shrink: 0; padding: 0 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border-light); font-size: 11px; font-weight: 700; color: var(--ink);
+  }
+  .status-icons { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+  .screen-content { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
+  .tab-bar {
+    height: 56px; flex-shrink: 0; border-top: 1px solid var(--border-light);
+    background: #fafaf9; display: flex; align-items: flex-start; justify-content: space-around; padding-top: 8px;
+  }
+  .tab-bar-item { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 9.5px; color: var(--muted); }
+  .tab-bar-item.active { color: var(--ink); font-weight: 700; }
+  .notif-icon-wrap { position: relative; display: inline-flex; }
+  .notif-dot { position: absolute; top: -1px; right: -1px; width: 8px; height: 8px; border-radius: 50%; background: #d33; border: 1px solid var(--card-bg); }
+
+  .header { padding: 16px 16px 0; flex-shrink: 0; }
+  .page-title { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+
+  .subtab-row { display: flex; gap: 0; padding: 0 16px; flex-shrink: 0; border-bottom: 1px solid var(--border-light); }
+  .subtab {
+    flex: 1; text-align: center; padding: 10px 0; font-size: 12.5px; font-weight: 700; color: var(--muted);
+    cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .subtab.active { color: var(--ink); border-bottom-color: var(--ink); }
+
+  .subview { display: none; flex: 1; min-height: 0; flex-direction: column; }
+  .subview.active { display: flex; }
+
+  /* 회의 예약 탭 */
+  .reserve-body { flex: 1; overflow-y: auto; padding: 20px 16px; }
+  .create-cta {
+    border: 1.5px solid var(--ink); padding: 20px 16px; text-align: center; margin-bottom: 20px;
+  }
+  .create-cta-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .create-cta-sub { font-size: 11.5px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+  .create-cta-btn {
+    width: 100%; background: var(--ink); color: #fff; border: none; padding: 11px;
+    font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  .recent-label { font-size: 11px; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 8px; }
+  .recent-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border-light); font-size: 12.5px; cursor: pointer; }
+  .recent-title { font-weight: 600; }
+  .recent-meta { font-size: 11px; color: var(--muted); }
+
+  /* 회의실 현황판 탭 */
+  .room-body { flex: 1; overflow-y: auto; padding: 14px 16px 20px; }
+  .room-search-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .room-search-row.last { margin-bottom: 14px; }
+  .date-field {
+    flex: 1; min-width: 0; border: 1px solid var(--border-light); padding: 8px 10px;
+    font-size: 11.5px; color: var(--ink); background: #fff; cursor: pointer;
+  }
+  .time-select-inline { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+  .time-select { border: 1px solid var(--border-light); padding: 7px 3px; font-size: 11.5px; font-family: inherit; color: var(--ink); background: #fff; width: 46px; }
+  .time-colon { font-size: 11.5px; color: var(--muted); }
+  .capacity-input {
+    flex: 1; min-width: 0; border: 1px solid var(--border-light); padding: 7px 8px;
+    font-size: 11.5px; font-family: inherit; color: var(--ink); background: #fff;
+  }
+  .room-search-btn {
+    flex-shrink: 0; background: var(--ink); color: #fff; border: none; padding: 8px 14px;
+    font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap;
+  }
+
+  /* 날짜 선택 캘린더 — 화면2(회의 생성)의 캘린더와 동일한 시각 언어 재사용, 크기는 더 컴팩트하게 축소 */
+  .calendar-panel { display: none; border: 1px solid var(--border-light); padding: 8px; margin-bottom: 14px; }
+  .calendar-panel.show { display: block; }
+  .calendar-header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-bottom: 6px; }
+  .calendar-header-spacer { visibility: hidden; }
+  .calendar-month-nav { display: flex; align-items: center; justify-content: center; gap: 2px; }
+  .calendar-nav-btn { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--ink); flex-shrink: 0; }
+  .calendar-month-label { font-size: 12px; font-weight: 700; padding: 0 2px; }
+  .calendar-today-btn { font-size: 10.5px; font-weight: 700; color: var(--ink); cursor: pointer; padding: 3px 8px; border: 1px solid var(--border-light); justify-self: end; white-space: nowrap; }
+  .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+  .calendar-dow { font-size: 9px; color: var(--muted); text-align: center; padding: 2px 0; font-weight: 700; }
+  .calendar-day { height: 26px; display: flex; align-items: center; justify-content: center; font-size: 10.5px; cursor: pointer; color: var(--ink); }
+  .calendar-day.empty { visibility: hidden; }
+  .calendar-day.selected { background: var(--ink); color: #fff; font-weight: 700; }
+  .calendar-day.today-marker { border: 1px solid var(--ink); }
+  .calendar-footer-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .calendar-footer-btn { flex: 1; text-align: center; padding: 6px 0; font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .calendar-footer-btn.clear { color: var(--muted); background: #fff; border: 1px solid var(--border-light); }
+  .calendar-footer-btn.confirm { color: #fff; background: var(--ink); border: 1px solid var(--ink); }
+
+  .room-day-label { font-size: 11.5px; color: var(--muted); font-weight: 700; margin-bottom: 10px; }
+  .room-card { border: 1px solid var(--border-light); margin-bottom: 12px; cursor: pointer; }
+  .room-card-top { display: flex; align-items: center; justify-content: space-between; padding: 11px 12px; }
+  .room-name { font-size: 13.5px; font-weight: 700; }
+  .room-meta { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+  .room-status { font-size: 9.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; margin-left: 8px; }
+  .room-status.free { background: #eaf6ee; color: var(--accent-green); }
+  .room-status.busy { background: #fdeeea; color: var(--accent-red); }
+  .room-timeline { padding: 0 12px 12px; }
+  .timeline-track { position: relative; height: 22px; background: #f0f0ee; border: 1px solid var(--border-light); overflow: hidden; }
+  .timeline-tick { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(0,0,0,0.14); }
+  .timeline-block { position: absolute; top: 0; bottom: 0; }
+  .timeline-hours { display: flex; justify-content: space-between; font-size: 8.5px; color: var(--muted); margin-top: 3px; }
+
+  /* 회의실 상세 패널 (조직도 모달과 동일한 풀스크린 오버레이 패턴 재사용) */
+  .room-detail-modal {
+    position: absolute; inset: 0; background: #fff; z-index: 20;
+    display: none; flex-direction: column;
+  }
+  .room-detail-modal.show { display: flex; }
+  .room-detail-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-bottom: 1px solid var(--border-light); flex-shrink: 0;
+  }
+  .room-detail-title { font-size: 15px; font-weight: 700; }
+  .room-detail-close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 17px; cursor: pointer; flex-shrink: 0; }
+  .room-detail-body { flex: 1; overflow-y: auto; padding: 16px; }
+  .room-detail-info-label { font-size: 11px; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 8px; }
+  .room-detail-info-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-light); font-size: 12.5px; }
+  .room-detail-info-row:last-child { border-bottom: none; }
+  .room-detail-info-row .info-label { color: var(--muted); }
+  .room-detail-info-row .info-value { font-weight: 600; text-align: right; }
+  .room-detail-list-label { font-size: 11px; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 16px; margin-bottom: 8px; }
+  .room-booking-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-light); }
+  .room-booking-row:last-child { border-bottom: none; }
+  .room-booking-swatch { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .room-booking-time { font-size: 12.5px; font-weight: 700; width: 108px; flex-shrink: 0; }
+  .room-booking-info { flex: 1; min-width: 0; }
+  .room-booking-title { font-size: 12.5px; font-weight: 600; }
+  .room-booking-reserver { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .room-detail-empty { font-size: 12px; color: var(--muted); text-align: center; padding: 24px 0; }
+
+  .toast {
+    position: absolute; bottom: 101px; left: 50%; transform: translateX(-50%) translateY(8px);
+    background: var(--ink); color: #fff; font-size: 11.5px; font-weight: 600;
+    padding: 7px 16px; border-radius: 20px; opacity: 0; pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease; white-space: nowrap; z-index: 40;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .dev-notes {
+    width: 100%; max-width: 390px; margin-top: 24px;
+    border: 1px dashed var(--border); padding: 16px 18px;
+    font-size: 12.5px; line-height: 1.7; color: var(--ink); background: #fff;
+  }
+  .dev-notes h3 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .dev-notes code { background: #f0f0ee; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  .dev-notes ul { margin: 4px 0 12px; padding-left: 18px; }
+  .dev-notes ul:last-child { margin-bottom: 0; }
+  .dev-notes .warn { color: #8a4b00; }
+</style>
+</head>
+<body>
+
+<div class="frame-label">화면 17 · 예약 (회의 예약 + 회의실 현황판) — MVP (신규)</div>
+
+<div class="app-card">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span class="status-icons">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19v-3M9 19v-6M14 19v-9M19 19V5"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5a15 15 0 0118 0"/><path d="M6.2 12a10.5 10.5 0 0111.6 0"/><path d="M9.5 15.5a5.8 5.8 0 015 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.2v3.6"/><rect x="4" y="9" width="10" height="6" fill="currentColor" stroke="none"/></svg>
+    </span>
+  </div>
+
+  <div class="screen-content">
+    <div class="header">
+      <div class="page-title">예약</div>
+    </div>
+
+    <div class="subtab-row" id="subtabRow">
+      <div class="subtab active" data-sub="reserve">회의 예약</div>
+      <div class="subtab" data-sub="room">회의실 현황</div>
+    </div>
+
+    <div class="subview active" id="reserveView">
+      <div class="reserve-body">
+        <div class="create-cta">
+          <div class="create-cta-title">새 회의 예약하기</div>
+          <div class="create-cta-sub">참석자와 후보 기간만 정하면<br>시간·회의 형태·회의실은 자동으로 처리돼요</div>
+          <button type="button" class="create-cta-btn" id="createBtn">회의 만들기 시작</button>
+        </div>
+
+        <div class="recent-label">최근 만든 회의</div>
+        <div class="recent-row" id="recentRow1" data-stage="collecting">
+          <div><div class="recent-title">3분기 로드맵 논의</div><div class="recent-meta">응답 수집 중</div></div>
+          <span class="recent-meta">7/8 생성</span>
+        </div>
+        <div class="recent-row" id="recentRow2" data-stage="confirmed">
+          <div><div class="recent-title">팀 빌딩 워크샵 기획</div><div class="recent-meta">확정</div></div>
+          <span class="recent-meta">7/3 생성</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="subview" id="roomView">
+      <div class="room-body">
+        <div class="room-search-row">
+          <div class="date-field" id="dateField">2026.07.11</div>
+        </div>
+        <div class="room-search-row last">
+          <span class="time-select-inline">
+            <select class="time-select" id="searchHourSelect"></select>
+            <span class="time-colon">:</span>
+            <select class="time-select" id="searchMinuteSelect"></select>
+          </span>
+          <input type="text" inputmode="numeric" class="capacity-input" id="searchCapacity" placeholder="인원 (숫자 입력)">
+          <button type="button" class="room-search-btn" id="roomSearchBtn">조회</button>
+        </div>
+
+        <div class="calendar-panel" id="calendarPanel">
+          <div class="calendar-header">
+            <span class="calendar-header-spacer"></span>
+            <span class="calendar-month-nav">
+              <span class="calendar-nav-btn" id="calPrev"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></span>
+              <span class="calendar-month-label" id="calMonthLabel"></span>
+              <span class="calendar-nav-btn" id="calNext"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></span>
+            </span>
+            <span class="calendar-today-btn" id="calTodayBtn">오늘</span>
+          </div>
+          <div class="calendar-grid" id="calGrid"></div>
+          <div class="calendar-footer-actions">
+            <span class="calendar-footer-btn clear" id="calClearBtn">삭제</span>
+            <span class="calendar-footer-btn confirm" id="calConfirmBtn">선택</span>
+          </div>
+        </div>
+
+        <div class="room-day-label" id="roomDayLabel">오늘(7/11, 금) 기준 · 09:00 – 20:00</div>
+
+        <div id="roomList"></div>
+      </div>
+
+      <div class="room-detail-modal" id="roomDetailModal">
+        <div class="room-detail-header">
+          <span class="room-detail-title" id="roomDetailTitle">회의실</span>
+          <span class="room-detail-close" id="roomDetailClose"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span>
+        </div>
+        <div class="room-detail-body" id="roomDetailBody"></div>
+      </div>
+    </div>
+
+    <div class="toast" id="routeToast"></div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab-bar-item active"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/></svg>예약</div>
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>내 회의</div>
+    <div class="tab-bar-item"><span class="notif-icon-wrap"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10.5a6 6 0 1112 0c0 4.2 1.5 5.5 1.5 5.5h-15S6 14.7 6 10.5z"/><path d="M9.7 18.5a2.3 2.3 0 004.6 0"/></svg><span class="notif-dot"></span></span>알림</div>
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20c0-4.14 3.36-7.5 7.5-7.5s7.5 3.36 7.5 7.5"/></svg>내 정보</div>
+  </div>
+</div>
+
+<div class="dev-notes">
+  <h3>구현 노트 (Claude Code 참고용)</h3>
+  <ul>
+    <li>기존 스펙엔 없던 <strong>완전 신규 화면</strong> — 탭바 1번째 탭("예약")에 대응하는 화면이 없던 것을 보완. 두 개의 서브탭으로 구성: "회의 예약"과 "회의실 현황"</li>
+    <li><strong>"회의 예약" 서브탭은 새 폼을 만드는 게 아니라 화면 2(회의 생성, <code>wireframe_03_meeting_create_1.html</code>)의 진입점</strong> — 이 화면에서는 콜투액션 카드 + 최근 만든 회의 목록만 보여주고, "회의 만들기 시작" 클릭 시 기존 화면 2로 이동. 회의 목록(화면 1) 하단의 "새 회의 만들기" 버튼과 동일한 목적지라, 진입 경로만 하나 더 생긴 것("탭바 예약" 경유 vs "내 회의 목록 하단 버튼" 경유)</li>
+    <li>"최근 만든 회의" 목록은 이 화면 전용 별도 데이터가 아니라 <code>MEETING</code>에서 <code>organizer_id</code>=나인 것만 <strong><code>created_at</code> 내림차순(최신 생성순)</strong>으로 몇 건 보여주는 것(화면 1 "내 회의" 목록과 데이터 소스는 같고 필터·정렬만 다름 — 화면 1은 마감 임박순, 여기는 생성일순). "응답과 헷갈리지 않도록" 라벨을 "최근 예약한 회의"에서 "최근 만든 회의"로 변경</li>
+    <li>목록 항목 클릭 시 <strong>진행 단계에 맞는 화면으로 이동</strong>(화면 1의 상태·역할별 분기 규칙과 동일한 원칙, 주최자 관점으로 단순화) — 제안중(응답 수집 중) → 회의 대시보드(화면 5, 주최자 전용) / 확정 → 회의 상세(화면 9). 데모에서는 <code>data-stage</code> 값에 따라 토스트로 이동을 시뮬레이션</li>
+    <li>"확정됨" → "확정"으로 표현 통일(다른 화면 상태 배지 표기와 맞춤)</li>
+    <li>CTA 카드 본문에서 "모드" → "회의 형태"로 용어 통일(§2-19 결정과 동일하게)</li>
+    <li><strong>"회의실 현황" 서브탭이 진짜 신규 기능</strong> — <code>ROOM</code> 전체 목록과 각 회의실의 예약 현황(<code>ROOM_BOOKING</code>)을 타임라인으로 표시. 이 화면은 <strong>조회 전용</strong>이며 회의실을 직접 예약하는 액션은 없음(회의실 예약은 항상 회의 확정 시점에 시스템이 자동으로 처리 — <code>db_model_mvp.md</code> "회의실 자동 예약" 규칙 참고)</li>
+    <li><strong>날짜·시간 검색 추가</strong> — 상단 날짜·시간 입력 후 "조회" 클릭 시 해당 시점 기준으로 각 회의실의 예약 여부를 다시 계산해 배지에 반영. 이 와이어프레임은 정적 목업 데이터라 시간대만 재계산해서 시연 — 실제 구현 시엔 선택한 날짜의 <code>ROOM_BOOKING</code>을 서버에서 다시 조회해야 함</li>
+    <li>타임라인 막대는 <strong>시간 텍스트 없이 색상으로만 표시</strong>하고, 배경 눈금선은 <strong>09~20시 매시간 동일 간격으로</strong> 표시(<code>TICK_HOURS</code>, 12개 선)해 정확한 위치를 가늠할 수 있게 함 — 다만 그 아래 시간 텍스트 라벨은 매시간 다 적으면 서로 겹쳐서 2시간 간격(<code>LABEL_HOURS</code>: 09·11·13·15·17·19)만 표기. 같은 회의실에 예약이 여러 건 붙어 있어도 구분되도록 <strong>5색 고정 팔레트</strong>를 순서대로 배정(자유/예약 배지의 초록·빨강과는 무관한 별도 색상 — 배지 색은 계속 "지금 비어있음/예약중" 의미로만 사용)</li>
+    <li>회의실 카드 클릭 시 <strong>회의실 상세정보(위치·수용 인원·보유 장비·특이사항) → (16px 간격) → 오늘 예약 현황(시작~종료 시간, 주최자, 회의 제목)</strong> 순으로 보여주는 전체화면 패널이 열림 — 화면 2(회의 생성)의 "부서 조직도" 모달과 동일한 풀스크린 오버레이 패턴 재사용. 예약이 없는 회의실은 "예약된 일정이 없어요" 안내 표시. 예약 목록 각 행은 "주최자 : {직위} {이름} (총 참석인원 : N명)" 형식으로 표기(예: "주최자 : 대리 김정아 (총 참석인원 : 6명)")</li>
+    <li><strong>날짜 검색 UI를 네이티브 <code>&lt;input type="date"&gt;</code>에서 화면 2(회의 생성)와 동일한 커스텀 캘린더 컴포넌트로 교체</strong> — 브라우저 기본 날짜 선택기는 CSS로 스타일링이 불가능해 디자인 시스템과 어긋났음(이전 버전 스크린샷에서 확인된 문제)</li>
+    <li><strong>캘린더 레이아웃 조정</strong> — 월 이동 화살표를 "YYYY년 M월" 라벨에 바짝 붙여 하나의 묶음(<code>calendar-month-nav</code>)으로 배치하고, 그 묶음과 같은 줄 오른쪽 끝에 "오늘"(현재 날짜로 바로 이동 + 패널 닫힘) 버튼을 추가 배치. 헤더는 <code>grid-template-columns: 1fr auto 1fr</code> 구조로 좌측에 보이지 않는 스페이서를 둬서 화살표+라벨 묶음이 "오늘" 버튼 유무와 무관하게 <strong>줄 전체 기준 정가운데</strong>에 오도록 정렬(기존엔 <code>space-between</code>이라 묶음이 왼쪽으로 치우쳐 보였음). 하단 버튼은 "삭제"(선택 해제, 옅은 테두리)와 <strong>"선택"</strong>(현재 선택된 날짜를 그대로 확정하고 패널만 닫음, 진한 배경 채움)으로 구성 — 기존엔 하단에 "오늘"이 있었지만 그 기능이 상단으로 옮겨가면서 "선택"(확인/닫기 전용)으로 문구 변경. 전체적으로 화살표 히트 영역 20×20/아이콘 13×13, 날짜 셀 높이 26px, 내부 여백도 줄여 <strong>캘린더 전체 크기를 이전보다 컴팩트하게 축소</strong>(이전엔 정사각형 셀이라 지나치게 커 보였음)</li>
+    <li><strong>시간 입력도 네이티브 <code>&lt;input type="time"&gt;</code>에서 화면 2와 동일한 시:분 드롭다운(select)으로 교체</strong>해 두 화면의 "시간 설정" 디자인을 통일. 12시간제(오전/오후 선택 추가 필요) vs 24시간제를 비교한 결과, 24시간제가 입력 요소가 하나 적고(오전/오후 선택 불필요) 이미 화면2가 24시간제를 쓰고 있어 그대로 통일하기 좋다고 판단해 24시간제로 확정. 분 단위는 <code>TIME_SLOT</code> 생성 단위(30분)에 맞춰 00/30만 제공(화면2 안건마감 시간선택과 동일) — 15분 단위로 세분화하는 안도 검토했으나, 그러려면 이미 만들어진 화면1(슬롯 응답) 시간 그리드까지 셀을 2배로 재구성해야 해서 범위가 커져 <strong>이번엔 기존 30분 단위를 유지하기로 확정</strong>(문서·다른 화면 변경 없음)</li>
+    <li><strong>시간(시) 드롭다운 항목 수를 24개(0~23시)에서 12개(09~20시)로 축소</strong> — 클릭 시 목록이 너무 길다는 피드백을 반영. 범위는 슬롯 응답 화면(화면 3, <code>wireframe_01_slot_response_1.html</code>)이 실제로 응답을 받는 시간대(9시~20시, <code>for (let h = 9; h < 20; h++)</code>)와 동일하게 맞춤 — 회의실 현황판의 조회 범위도 09:00~20:00으로 통일</li>
+    <li><strong>검색 조건에 "인원" 필터 추가</strong> — 날짜·시간 옆에 숫자 입력(인원)을 추가해, 값을 입력하고 "조회"를 누르면 해당 인원 이상 수용 가능한(<code>capacityNum</code> ≥ 입력값) 회의실만 리스트로 필터링해 보여줌. 인원을 비워두면 기존처럼 전체 회의실 표시. 조건에 맞는 회의실이 하나도 없으면 "조건에 맞는 회의실이 없어요" 안내로 대체. 입력 필드는 <code>type="number"</code>(스피너 버튼 있는 증감형)가 아니라 <strong><code>type="text" inputmode="numeric"</code>로 순수 직접 입력</strong>만 받도록 구현 — 숫자가 아닌 문자는 입력 즉시 제거(휴대폰번호 입력과 동일한 필터링 방식)</li>
+    <li>탭바 위치상 "예약" 탭 아이콘이 곧 이 화면의 진입점이라 뒤로가기 화살표 없음(화면 1·11·16과 동급)</li>
+  </ul>
+</div>
+
+<script>
+  // ---- 서브탭 전환 ----
+  document.getElementById("subtabRow").addEventListener("click", (e) => {
+    const tab = e.target.closest(".subtab");
+    if (!tab) return;
+    document.querySelectorAll(".subtab").forEach((t) => t.classList.toggle("active", t === tab));
+    const target = tab.dataset.sub;
+    document.getElementById("reserveView").classList.toggle("active", target === "reserve");
+    document.getElementById("roomView").classList.toggle("active", target === "room");
+  });
+
+  const toast = document.getElementById("routeToast");
+  let toastTimer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 1400);
+  }
+
+  document.getElementById("createBtn").addEventListener("click", () => {
+    showToast("→ 회의 생성 화면(2)으로 이동");
+  });
+
+  // ---- 최근 만든 회의: 단계별 클릭 라우팅 ----
+  document.getElementById("recentRow1").addEventListener("click", () => {
+    showToast("→ 회의 대시보드 화면(5)으로 이동");
+  });
+  document.getElementById("recentRow2").addEventListener("click", () => {
+    showToast("→ 회의 상세 화면(9)으로 이동");
+  });
+
+  // ---- 회의실 현황판 ----
+  const DAY_START = 9 * 60;  // 09:00 — 슬롯 응답 화면(화면3)의 응답 수집 시간대(9시~20시)와 통일
+  const DAY_END = 20 * 60;   // 20:00
+  const RANGE = DAY_END - DAY_START;
+  // 눈금(TICK_HOURS)은 9~20시 매시간 동일 간격으로 표시, 시간 텍스트 라벨(LABEL_HOURS)은 겹치지 않도록 2시간 간격만 표기
+  const TICK_HOURS = Array.from({ length: DAY_END / 60 - DAY_START / 60 + 1 }, (_, i) => DAY_START / 60 + i);
+  const LABEL_HOURS = [9, 11, 13, 15, 17, 19];
+  const BLOCK_COLORS = ["#2f6fb3", "#6b46c1", "#b8860b", "#0f7a6b", "#a83279"]; // 예약 구분용 5색 고정 팔레트(자유/예약 배지 색과는 무관)
+
+  const ROOMS = [
+    {
+      id: "A", name: "대회의실 A", meta: "3층 · 10인 · 화상장비", defaultStatus: "busy",
+      floor: "3층", capacity: "10인", capacityNum: 10, equipment: "화상회의 장비, 대형 모니터", notes: "화이트보드 있음",
+      bookings: [
+        { start: "10:00", end: "11:20", title: "3분기 로드맵 논의", organizerRank: "대리", organizerName: "김정아", attendeeCount: 6 },
+        { start: "14:00", end: "15:30", title: "팀 빌딩 워크샵 기획", organizerRank: "매니저", organizerName: "박서준", attendeeCount: 4 },
+      ],
+    },
+    {
+      id: "B", name: "소회의실 B", meta: "3층 · 4인", defaultStatus: "free",
+      floor: "3층", capacity: "4인", capacityNum: 4, equipment: "화이트보드", notes: "-",
+      bookings: [
+        { start: "9:30", end: "10:35", title: "디자인 스프린트 회고", organizerRank: "사원", organizerName: "이하늘", attendeeCount: 3 },
+      ],
+    },
+    {
+      id: "C", name: "소회의실 C", meta: "4층 · 6인 · 화상장비", defaultStatus: "free",
+      floor: "4층", capacity: "6인", capacityNum: 6, equipment: "화상회의 장비", notes: "창가 자리, 채광 좋음",
+      bookings: [],
+    },
+  ];
+
+  function toMinutes(hhmm) {
+    const [h, m] = hhmm.split(":").map(Number);
+    return h * 60 + m;
+  }
+  function toPercent(min) {
+    return Math.max(0, Math.min(100, ((min - DAY_START) / RANGE) * 100));
+  }
+
+  const roomListEl = document.getElementById("roomList");
+
+  function renderTicks() {
+    return TICK_HOURS.map((h) => {
+      const left = toPercent(h * 60);
+      return `<div class="timeline-tick" style="left:${left}%;"></div>`;
+    }).join("");
+  }
+
+  function renderBlocks(room) {
+    return room.bookings.map((b, i) => {
+      const left = toPercent(toMinutes(b.start));
+      const width = toPercent(toMinutes(b.end)) - left;
+      const color = BLOCK_COLORS[i % BLOCK_COLORS.length];
+      return `<div class="timeline-block" style="left:${left}%;width:${width}%;background:${color};"></div>`;
+    }).join("");
+  }
+
+  // searchMinutes가 null이면 room.defaultStatus로 표시, 있으면 해당 시각 기준으로 재계산
+  function getStatus(room, searchMinutes) {
+    if (searchMinutes == null) {
+      return { busy: room.defaultStatus === "busy", label: room.defaultStatus === "busy" ? "지금 예약중" : "지금 비어있음" };
+    }
+    const busy = room.bookings.some((b) => searchMinutes >= toMinutes(b.start) && searchMinutes < toMinutes(b.end));
+    const hh = String(Math.floor(searchMinutes / 60)).padStart(2, "0");
+    const mm = String(searchMinutes % 60).padStart(2, "0");
+    return { busy, label: `${hh}:${mm} 기준 ${busy ? "예약중" : "비어있음"}` };
+  }
+
+  // minCapacity가 있으면 해당 인원을 수용 가능한(capacityNum 이상) 회의실만 필터링해 보여줌
+  function renderRoomList(searchMinutes, minCapacity) {
+    const filtered = minCapacity ? ROOMS.filter((r) => r.capacityNum >= minCapacity) : ROOMS;
+
+    if (!filtered.length) {
+      roomListEl.innerHTML = `<div class="room-detail-empty">조건에 맞는 회의실이 없어요</div>`;
+      return;
+    }
+
+    roomListEl.innerHTML = filtered.map((room) => {
+      const status = getStatus(room, searchMinutes);
+      return `
+        <div class="room-card" data-room-id="${room.id}">
+          <div class="room-card-top">
+            <div>
+              <div class="room-name">${room.name}</div>
+              <div class="room-meta">${room.meta}</div>
+            </div>
+            <span class="room-status ${status.busy ? "busy" : "free"}">${status.label}</span>
+          </div>
+          <div class="room-timeline">
+            <div class="timeline-track">
+              ${renderTicks()}
+              ${renderBlocks(room)}
+            </div>
+            <div class="timeline-hours">${LABEL_HOURS.map((h) => `<span>${pad2(h)}</span>`).join("")}</div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    roomListEl.querySelectorAll(".room-card").forEach((card) => {
+      card.addEventListener("click", () => openRoomDetail(card.dataset.roomId));
+    });
+  }
+
+  renderRoomList(null);
+
+  // ---- 날짜 선택 캘린더 (화면2의 캘린더와 동일한 시각 언어 재사용) ----
+  // 시간 형식은 화면2(회의 생성)의 시:분 드롭다운과 동일하게 24시간제로 통일 — AM/PM 선택창을 추가로 안 둬도 되어
+  // 입력 요소가 하나 줄고, 이미 화면2가 이 방식이라 두 화면 디자인을 그대로 맞출 수 있음(비교 결과 12시간제 대비 더 간단하고 헷갈릴 일 없음)
+  const REAL_TODAY = { year: 2026, month: 6, day: 11 }; // 2026-07-11 (월은 0-indexed: 6=7월)
+  const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+  let calViewYear = REAL_TODAY.year;
+  let calViewMonth = REAL_TODAY.month;
+  let selectedDate = { ...REAL_TODAY };
+
+  const dateField = document.getElementById("dateField");
+  const calendarPanel = document.getElementById("calendarPanel");
+  const calGrid = document.getElementById("calGrid");
+  const calMonthLabel = document.getElementById("calMonthLabel");
+
+  function pad2(n) { return String(n).padStart(2, "0"); }
+  function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
+  function startWeekday(y, m) { return new Date(y, m, 1).getDay(); }
+
+  function formatSelectedDate(d) {
+    const weekday = dayNames[new Date(d.year, d.month, d.day).getDay()];
+    return `${d.year}.${pad2(d.month + 1)}.${pad2(d.day)} (${weekday})`;
+  }
+
+  function updateDateFieldText() {
+    dateField.textContent = selectedDate
+      ? formatSelectedDate(selectedDate)
+      : "날짜 선택";
+  }
+
+  function renderCalendar() {
+    calMonthLabel.textContent = `${calViewYear}년 ${calViewMonth + 1}월`;
+    const total = daysInMonth(calViewYear, calViewMonth);
+    const startDay = startWeekday(calViewYear, calViewMonth);
+    let html = dayNames.map((d) => `<div class="calendar-dow">${d}</div>`).join("");
+    for (let i = 0; i < startDay; i++) html += `<div class="calendar-day empty"></div>`;
+    for (let d = 1; d <= total; d++) {
+      let cls = "calendar-day";
+      const isSelected = selectedDate && selectedDate.year === calViewYear && selectedDate.month === calViewMonth && selectedDate.day === d;
+      const isToday = REAL_TODAY.year === calViewYear && REAL_TODAY.month === calViewMonth && REAL_TODAY.day === d;
+      if (isSelected) cls += " selected";
+      else if (isToday) cls += " today-marker";
+      html += `<div class="${cls}" data-day="${d}">${d}</div>`;
+    }
+    calGrid.innerHTML = html;
+  }
+
+  dateField.addEventListener("click", () => {
+    calendarPanel.classList.toggle("show");
+  });
+
+  calGrid.addEventListener("click", (e) => {
+    const cell = e.target.closest(".calendar-day:not(.empty)");
+    if (!cell) return;
+    selectedDate = { year: calViewYear, month: calViewMonth, day: Number(cell.dataset.day) };
+    updateDateFieldText();
+    renderCalendar();
+    calendarPanel.classList.remove("show");
+  });
+
+  document.getElementById("calPrev").addEventListener("click", () => {
+    calViewMonth--; if (calViewMonth < 0) { calViewMonth = 11; calViewYear--; }
+    renderCalendar();
+  });
+  document.getElementById("calNext").addEventListener("click", () => {
+    calViewMonth++; if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
+    renderCalendar();
+  });
+  document.getElementById("calClearBtn").addEventListener("click", () => {
+    selectedDate = null;
+    updateDateFieldText();
+    renderCalendar();
+  });
+  document.getElementById("calTodayBtn").addEventListener("click", () => {
+    selectedDate = { ...REAL_TODAY };
+    calViewYear = REAL_TODAY.year;
+    calViewMonth = REAL_TODAY.month;
+    updateDateFieldText();
+    renderCalendar();
+    calendarPanel.classList.remove("show");
+  });
+  document.getElementById("calConfirmBtn").addEventListener("click", () => {
+    // 현재 선택된 날짜를 그대로 확정하고 패널만 닫음(값 변경 없음)
+    calendarPanel.classList.remove("show");
+  });
+
+  renderCalendar();
+
+  // ---- 시간 선택 (24시간제, 화면2와 동일한 select 구성 · 30분 단위) ----
+  const searchHourSelect = document.getElementById("searchHourSelect");
+  const searchMinuteSelect = document.getElementById("searchMinuteSelect");
+  // 시간 목록이 너무 길어 보인다는 피드백 반영 — 슬롯 응답 화면(화면3)의 실제 응답 수집 시간대(9시~20시)와 맞춰
+  // 회의실 현황판의 조회 범위도 09:00~20:00으로 통일(24개 → 12개)
+  searchHourSelect.innerHTML = `<option value="">시</option>` + Array.from({ length: DAY_END / 60 - DAY_START / 60 + 1 }, (_, i) => DAY_START / 60 + i).map((h) => `<option value="${h}">${pad2(h)}시</option>`).join("");
+  searchMinuteSelect.innerHTML = `<option value="">분</option><option value="0">00분</option><option value="30">30분</option>`;
+
+  // ---- 조회 (날짜 필수, 시간·인원은 선택적 필터) ----
+  const searchCapacityInput = document.getElementById("searchCapacity");
+  // 숫자만 입력되도록 필터링 — 스피너 버튼 없이 순수 직접 입력 필드로 동작(휴대폰번호 입력 등과 동일한 방식)
+  searchCapacityInput.addEventListener("input", () => {
+    searchCapacityInput.value = searchCapacityInput.value.replace(/\D/g, "");
+  });
+  document.getElementById("roomSearchBtn").addEventListener("click", () => {
+    const dayLabel = document.getElementById("roomDayLabel");
+    if (!selectedDate) { showToast("날짜를 선택해주세요"); return; }
+
+    const dateStr = formatSelectedDate(selectedDate);
+    const hourVal = searchHourSelect.value;
+    const minuteVal = searchMinuteSelect.value;
+    const capacityVal = Number(searchCapacityInput.value) || null;
+    const capacityNote = capacityVal ? ` · 인원 ${capacityVal}명 이상` : "";
+
+    if (hourVal !== "" && minuteVal !== "") {
+      const searchMinutes = Number(hourVal) * 60 + Number(minuteVal);
+      dayLabel.textContent = `${dateStr} · ${pad2(hourVal)}:${pad2(minuteVal)} 기준 조회 결과${capacityNote}`;
+      renderRoomList(searchMinutes, capacityVal);
+    } else {
+      dayLabel.textContent = `${dateStr} 기준 · 09:00 – 20:00${capacityNote}`;
+      renderRoomList(null, capacityVal);
+    }
+  });
+
+  // ---- 회의실 상세 패널 ----
+  const roomDetailModal = document.getElementById("roomDetailModal");
+  const roomDetailTitle = document.getElementById("roomDetailTitle");
+  const roomDetailBody = document.getElementById("roomDetailBody");
+
+  function openRoomDetail(roomId) {
+    const room = ROOMS.find((r) => r.id === roomId);
+    if (!room) return;
+    roomDetailTitle.textContent = room.name;
+
+    const infoRows = `
+      <div class="room-detail-info-row"><span class="info-label">위치</span><span class="info-value">${room.floor}</span></div>
+      <div class="room-detail-info-row"><span class="info-label">수용 인원</span><span class="info-value">${room.capacity}</span></div>
+      <div class="room-detail-info-row"><span class="info-label">보유 장비</span><span class="info-value">${room.equipment}</span></div>
+      <div class="room-detail-info-row"><span class="info-label">특이사항</span><span class="info-value">${room.notes}</span></div>
+    `;
+
+    const bookingRows = room.bookings.length
+      ? room.bookings.map((b, i) => `
+          <div class="room-booking-row">
+            <span class="room-booking-swatch" style="background:${BLOCK_COLORS[i % BLOCK_COLORS.length]};"></span>
+            <span class="room-booking-time">${b.start} – ${b.end}</span>
+            <div class="room-booking-info">
+              <div class="room-booking-title">${b.title}</div>
+              <div class="room-booking-reserver">주최자 : ${b.organizerRank} ${b.organizerName} (총 참석인원 : ${b.attendeeCount}명)</div>
+            </div>
+          </div>
+        `).join("")
+      : `<div class="room-detail-empty">예약된 일정이 없어요</div>`;
+
+    roomDetailBody.innerHTML = `
+      <div class="room-detail-info-label">회의실 상세정보</div>
+      ${infoRows}
+      <div class="room-detail-list-label">오늘 예약 현황</div>
+      ${bookingRows}
+    `;
+    roomDetailModal.classList.add("show");
+  }
+
+  document.getElementById("roomDetailClose").addEventListener("click", () => {
+    roomDetailModal.classList.remove("show");
+  });
+
+  // ---- 하단 탭바 터치 이동 (전 화면 공통 패턴) ----
+  const TAB_ROUTES = {
+    "예약": "예약 화면(화면 17)",
+    "내 회의": "내 회의 화면(화면 1)",
+    "알림": "알림 화면(화면 11)",
+    "내 정보": "내 정보 화면(화면 16)",
+  };
+  document.querySelector(".tab-bar").addEventListener("click", (e) => {
+    const item = e.target.closest(".tab-bar-item");
+    if (!item || item.classList.contains("active")) return;
+    const label = item.textContent.trim();
+    if (TAB_ROUTES[label]) showToast(`→ ${TAB_ROUTES[label]}로 이동`);
+  });
+</script>
+
+</body>
+</html>

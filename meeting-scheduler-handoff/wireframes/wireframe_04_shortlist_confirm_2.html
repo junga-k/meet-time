@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>와이어프레임 — 압축 후보 확인 화면</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #1a1a1a;
+    --border-light: #c9c9c9;
+    --page-bg: #e9e9e7;
+    --card-bg: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 16px;
+    background: var(--page-bg);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .frame-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+  .app-card {
+    width: 100%;
+    max-width: 390px;
+    background: var(--card-bg);
+    border: 1.5px solid var(--border);
+    height: 844px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .status-bar {
+    height: 24px;
+    flex-shrink: 0;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .status-icons { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+  .screen-content { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
+  .tab-bar {
+    height: 56px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-light);
+    background: #fafaf9;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-around;
+    padding-top: 8px;
+  }
+  .tab-bar-item { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 9.5px; color: var(--muted); }
+  .tab-bar-item.active { color: var(--ink); font-weight: 700; }
+  .notif-icon-wrap { position: relative; display: inline-flex; }
+  .notif-dot {
+    position: absolute; top: -1px; right: -1px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #d33; border: 1px solid var(--card-bg);
+  }
+  .toast {
+    position: absolute;
+    z-index: 45;
+    bottom: 101px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--ink);
+    color: #fff;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    white-space: nowrap;
+    text-align: center;
+    max-width: 320px;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 헤더 (화면 3과 동일 컴포넌트) */
+  .header { padding: 14px 16px 0; border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+  .back-arrow { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: var(--ink); }
+  .user-name { font-size: 13px; font-weight: 700; line-height: 1.2; }
+  .user-id-block { display: flex; align-items: center; gap: 7px; }
+  .avatar {
+    border-radius: 50%; border: 1px solid var(--border-light); background: #f0f0ee;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--ink);
+    flex-shrink: 0; overflow: hidden;
+  }
+  .avatar-md { width: 24px; height: 24px; font-size: 10.5px; }
+  .avatar-sm { width: 26px; height: 26px; font-size: 11px; }
+  .user-meta-row { text-align: right; font-size: 10px; color: var(--muted); line-height: 1.2; margin-bottom: 4px; }
+  .badge-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+  .badge { font-size: 9.5px; padding: 2px 7px; border: 1px solid var(--ink); border-radius: 20px; font-weight: 600; letter-spacing: 0.02em; }
+  .meeting-title { font-size: 18px; font-weight: 700; margin: 0 0 6px; line-height: 1.3; }
+  .tabs { display: flex; margin: 10px -16px 0; padding: 0 16px; }
+  .tab { padding: 10px 14px; font-size: 13px; color: var(--muted); border-bottom: 2px solid transparent; }
+  .tab.active { color: var(--ink); font-weight: 700; border-bottom: 2px solid var(--ink); }
+
+  /* 참석 형태 선택 */
+  .attendance-select { padding: 12px 16px; border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
+  .attendance-label { font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .segmented { display: flex; border: 1px solid var(--border-light); }
+  .segmented button {
+    flex: 1; padding: 9px; font-size: 12px; background: #fff; border: none;
+    border-right: 1px solid var(--border-light); cursor: pointer; color: var(--muted); font-family: inherit;
+  }
+  .segmented button:last-child { border-right: none; }
+  .segmented button.active { background: var(--ink); color: #fff; font-weight: 700; }
+
+  /* 회의 형태 참고 정보 */
+  .mode-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 11.5px;
+    background: #fafaf9;
+    flex-shrink: 0;
+  }
+  .mode-info svg { flex-shrink: 0; color: var(--muted); }
+  .mode-info .mode-value { font-weight: 700; }
+  .mode-info .mode-caption { color: var(--muted); font-size: 10.5px; margin-left: auto; text-align: right; }
+
+  .meta-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 16px 0; font-size: 12px; color: var(--muted); flex-shrink: 0;
+  }
+  .deadline { font-weight: 700; color: var(--ink); }
+
+  .instruction {
+    padding: 6px 16px 10px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.4;
+    flex-shrink: 0;
+  }
+
+  .privacy-note {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px 10px;
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.4;
+    border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
+  }
+  .privacy-note svg { flex-shrink: 0; }
+
+  /* 후보 카드 목록 */
+  .candidate-wrap {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    padding: 12px 16px 6px;
+    display: flex;
+    flex-direction: column;
+  }
+  .candidate-scroll { flex: 1; min-height: 100px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .candidate-lock-overlay {
+    position: absolute; inset: 0;
+    background: rgba(233,233,231,0.9);
+    display: none; align-items: center; justify-content: center;
+    text-align: center; padding: 24px;
+    font-size: 12.5px; color: var(--muted); font-weight: 700; z-index: 4;
+  }
+  .candidate-wrap.locked .candidate-lock-overlay { display: flex; }
+  .candidate-wrap.locked .candidate-scroll { pointer-events: none; }
+  .candidate-lock-overlay svg { display: block; margin: 0 auto 8px; }
+
+  .candidate-card {
+    border: 1px solid var(--border-light);
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .candidate-card.marked-unavailable { background: #fafaf9; }
+  .candidate-datetime { font-size: 13px; font-weight: 700; line-height: 1.3; }
+  .candidate-date-sub { font-size: 10.5px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+  .candidate-choice { display: flex; border: 1px solid var(--border-light); flex-shrink: 0; }
+  .candidate-choice button {
+    padding: 7px 12px; font-size: 11.5px; background: #fff; border: none;
+    border-right: 1px solid var(--border-light); cursor: pointer; color: var(--muted); font-family: inherit;
+  }
+  .candidate-choice button:last-child { border-right: none; }
+  .candidate-choice button.active-available { background: var(--ink); color: #fff; font-weight: 700; }
+  .candidate-choice button.active-unavailable { background: #a32d2d; color: #fff; font-weight: 700; border-color: #a32d2d; }
+
+  /* 확인 팝업 */
+  .confirm-modal-overlay {
+    position: absolute; inset: 0; background: rgba(20,20,20,0.4);
+    z-index: 30; display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  .confirm-modal-overlay.show { display: flex; }
+  .confirm-modal-box { background: #fff; border: 1.5px solid var(--ink); width: 100%; padding: 18px; }
+  .confirm-modal-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+  .confirm-modal-body { font-size: 12px; color: var(--ink); line-height: 1.7; margin-bottom: 16px; }
+  .confirm-modal-body .muted-line { color: var(--muted); font-size: 11px; margin-top: 8px; }
+  .confirm-modal-body .warn-line { color: #a32d2d; font-size: 11.5px; margin-top: 8px; font-weight: 700; }
+  .confirm-modal-actions { display: flex; gap: 8px; }
+  .confirm-modal-actions button {
+    flex: 1; padding: 10px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    font-family: inherit; border: 1px solid var(--ink);
+  }
+  .confirm-btn-cancel { background: #fff; color: var(--ink); }
+  .confirm-btn-ok { background: var(--ink); color: #fff; }
+
+  /* 확정 안내 배너 — 응답완료 버튼 바로 위(footer) */
+  .warning-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 0 0 10px;
+    font-size: 11px;
+    color: var(--ink);
+    line-height: 1.45;
+    flex-shrink: 0;
+  }
+  .warning-banner svg { flex-shrink: 0; margin-top: 1px; color: var(--muted); }
+
+  /* 하단 */
+  .footer { flex-shrink: 0; padding: 14px 16px; transition: box-shadow 0.15s ease; }
+  .footer.show-boundary { box-shadow: 0 -3px 8px rgba(0,0,0,0.10); }
+  .submit-btn {
+    width: 100%; background: var(--ink); color: #fff; border: none; padding: 11px;
+    font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  .submit-btn:disabled { background: var(--border-light); color: var(--muted); cursor: not-allowed; }
+
+  /* 구현 노트 */
+  .dev-notes {
+    width: 100%; max-width: 390px; margin-top: 24px;
+    border: 1px dashed var(--border); padding: 16px 18px;
+    font-size: 12.5px; line-height: 1.7; color: var(--ink); background: #fff;
+  }
+  .dev-notes h3 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .dev-notes code { background: #f0f0ee; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  .dev-notes ul { margin: 4px 0 12px; padding-left: 18px; }
+  .dev-notes ul:last-child { margin-bottom: 0; }
+</style>
+</head>
+<body>
+
+<div class="frame-label">화면 12 · 압축 후보 확인 (선택 참석자용) — MVP</div>
+
+<div class="app-card">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span class="status-icons">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19v-3M9 19v-6M14 19v-9M19 19V5"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5a15 15 0 0118 0"/><path d="M6.2 12a10.5 10.5 0 0111.6 0"/><path d="M9.5 15.5a5.8 5.8 0 015 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.2v3.6"/><rect x="4" y="9" width="10" height="6" fill="currentColor" stroke="none"/></svg>
+    </span>
+  </div>
+
+  <div class="screen-content">
+    <div class="header">
+      <div class="header-top">
+        <div class="back-arrow"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></div>
+        <div class="user-id-block">
+          <span class="avatar avatar-md">한</span>
+          <span class="user-name">한소희</span>
+        </div>
+      </div>
+      <div class="user-meta-row">디자인팀 · 사원</div>
+      <div class="badge-row"><div class="badge">선택 참석자</div></div>
+      <div class="meeting-title">3분기 로드맵 논의</div>
+      <div class="tabs">
+        <div class="tab active">후보 확인</div>
+        <div class="tab">안건 등록</div>
+      </div>
+    </div>
+
+    <div class="attendance-select">
+      <div class="attendance-label">참석 형태 (회의당 1회 선택)</div>
+      <div class="segmented" id="attendanceSegmented">
+        <button type="button" data-mode="offline">대면만</button>
+        <button type="button" data-mode="online">온라인만</button>
+        <button type="button" data-mode="either">둘 다 가능</button>
+      </div>
+    </div>
+
+    <div class="mode-info">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+      <span>회의 형태: <span class="mode-value">하이브리드</span></span>
+      <span class="mode-caption">필수 참석자 기준 계산됨</span>
+    </div>
+
+    <div class="meta-row">
+      <span>압축 후보 5개 확인</span>
+      <span class="deadline">마감 · 1일 6시간 남음</span>
+    </div>
+
+    <div class="instruction">
+      각 후보 시간에 참석 가능 여부를 <strong>가능 / 불가</strong>로만 표시해 주세요.
+    </div>
+
+    <div class="privacy-note">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+      응답 내용은 개별 공개되지 않고, 집계 결과만 전달돼요. 단, 일정 조율이 어려운 경우 시스템이 필요한 분께만 개별로 변경 요청을 보낼 수 있어요.
+    </div>
+
+    <div class="candidate-wrap locked" id="candidateWrap">
+      <div class="candidate-lock-overlay" id="candidateLockOverlay">
+        <span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><br>먼저 위에서 참석 형태를 선택해 주세요</span>
+      </div>
+      <div class="candidate-scroll" id="candidateList"><!-- JS로 렌더링 --></div>
+    </div>
+
+    <div class="footer" id="shortlistFooter">
+      <div class="warning-banner">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.24 3.5L2.5 18a1.5 1.5 0 001.32 2.2h16.36a1.5 1.5 0 001.32-2.2L13.76 3.5a1.5 1.5 0 00-2.6 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        <span>확정 후엔 일정 변경이 어려워요 · <span style="color:var(--muted);">제출된 응답은 시스템이 자동으로 확인해 조율해요</span></span>
+      </div>
+      <button type="button" class="submit-btn" id="completeBtn" disabled>응답 완료</button>
+      <div id="completeHint" style="font-size:11px; color:var(--muted); margin-top:6px; display:none;"></div>
+    </div>
+
+    <div class="toast" id="saveToast"></div>
+
+    <div class="confirm-modal-overlay" id="completeConfirmOverlay">
+      <div class="confirm-modal-box">
+        <div class="confirm-modal-title" id="completeConfirmTitle">응답을 완료하시겠습니까?</div>
+        <div class="confirm-modal-body" id="completeConfirmSummary"></div>
+        <div class="confirm-modal-actions">
+          <button type="button" class="confirm-btn-cancel" id="completeConfirmCancel">취소</button>
+          <button type="button" class="confirm-btn-ok" id="completeConfirmOk">확인</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/></svg>예약</div>
+    <div class="tab-bar-item active"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>내 회의</div>
+    <div class="tab-bar-item"><span class="notif-icon-wrap"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10.5a6 6 0 1112 0c0 4.2 1.5 5.5 1.5 5.5h-15S6 14.7 6 10.5z"/><path d="M9.7 18.5a2.3 2.3 0 004.6 0"/></svg><span class="notif-dot"></span></span>알림</div>
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20c0-4.14 3.36-7.5 7.5-7.5s7.5 3.36 7.5 7.5"/></svg>내 정보</div>
+  </div>
+</div>
+
+<div class="dev-notes">
+  <h3>구현 노트 (Claude Code 참고용)</h3>
+  <ul>
+    <li><strong>접근 대상</strong>: <code>PARTICIPANT.role</code>='선택'인 참가자, <code>MEETING.stage</code>='선택확인중'일 때만 접근 가능 — 그 전에는 회의 목록(화면 1)에 "대기 중"으로만 표시되고 클릭 비활성. 이 화면은 <strong>화면 3(슬롯 응답)과 헤더·탭 컴포넌트를 공유</strong>하되 배지만 "선택 참석자"로 바뀜(화면 3은 "필수 참석자")</li>
+    <li><strong>참석 형태 선택은 화면 3과 동일한 컴포넌트</strong>(대면만/온라인만/둘 다 가능, 회의당 1회, <code>PARTICIPANT.attendance_mode</code>) — 선택 전에는 후보 카드 목록 위에 잠금 오버레이가 뜨고 "응답 완료" 버튼도 비활성화됨(화면 3과 동일한 게이팅 패턴)</li>
+    <li><strong>회의 형태(<code>MEETING.mode</code>) 참고 표시</strong> — 이미 필수 참석자 응답 기준으로 자동 계산되어 확정된 값이며, 이 화면에서 변경 불가(읽기 전용). "참고용"이라는 점을 우측에 작게 병기해 오해 방지</li>
+    <li>후보 목록은 <code>TIME_SLOT.is_shortlisted=true</code>인 <strong>5개만</strong> 표시(전체 그리드 아님) — 화면 3의 30분 단위 전체 그리드와 달리 가벼운 확인만 목적. 각 카드는 날짜·시간을 표시하고 <strong>가능/불가 2択</strong>만 제공(기피 없음 — 세밀한 선호가 아니라 참석 가능 여부만 필요하기 때문)</li>
+    <li>카드 기본값은 <strong>가능</strong>(화면 3과 동일하게 <code>SLOT_RESPONSE</code> 레코드가 없는 경우의 기본값 규칙을 따름) — 참석이 어려운 후보만 "불가"로 클릭해서 바꾸면 됨. 화면 상단 안내 문구에서는 "표시하지 않으면 가능 처리"라는 부연 설명을 <strong>생략</strong>함(요청에 따라 제거 — 대신 확인 팝업에서 실제로 가능 처리될 후보를 구체적으로 보여주므로 중복 설명 불필요)</li>
+    <li><strong>"응답 완료" 버튼</strong>: 참석 형태 선택 전엔 비활성화. 클릭 시 확인 팝업이 뜨고 확인해야 <code>PARTICIPANT.responded_at</code> 기록. 선택 참석자 전원이 완료하면 <code>optional_response_deadline</code> 전이라도 즉시 <code>MEETING.stage</code>='확정'으로 전환(조기 진행). 확인 팝업 내용은 <strong>"표시하지 않은 후보는 가능 처리"라는 일반 문구 대신, 그 시점에 "가능"으로 표시된 후보들의 실제 날짜·시간을 나열</strong>해서 보여줌(예: "가능: 목 7/10 14:00~15:00, 금 7/11 10:30~11:30, ...") — 사용자가 확정 직전에 무엇이 "가능"으로 제출되는지 구체적으로 확인할 수 있도록 함. 5개 전부 불가인 경우는 별도 분기(위 항목)로 처리되어 이 목록이 뜨지 않음</li>
+    <li><strong>5개 전부 "불가"로 응답한 경우 분기 처리</strong>: 완화요청·재조율을 트리거하지 않고 <code>confirmation_status</code>='불참'으로만 기록, 나머지 진행(필수 참석자 기준 확정)은 그대로 진행됨. 확인 팝업 문구도 이 경우 다르게 표시(불참 처리됨을 명확히 안내)하고, 확인 직후 이 화면에서는 "불참으로 기록됐어요"라는 <strong>1차 안내만</strong> 표시함(이 와이어프레임은 1인 시점 데모).</li>
+    <li><strong>불참 처리 이후의 2차 안내(이 화면 밖, 별도 시점)</strong>: 위 1차 안내가 전부가 아님 — <code>MEETING.stage</code>가 '확정'으로 전환되는 시점에 아직 <code>confirmation_status</code>='불참'으로 남아있는 선택 참석자에게 <code>NOTIFICATION</code>(type: 불참안내)이 별도로 발송됨. 회의 시작 전이면 "참석으로 변경할 수 있다"는 기회를 함께 안내(화면 9 회의상세의 "참석으로 변경" 버튼으로 연결), 회의 시작 후라면 "회의록을 확인해주세요"만 안내(v2 회의록 완성 전까지는 문구만, 실제 이동 링크 없음). 상세 규칙은 <code>screen_specs.md</code> 화면 12 "선택 참석자 불참 처리 후속 안내" 절 참고 — 이 화면은 그 흐름의 첫 단계만 보여주는 것이며, 전체 라이프사이클은 별도 화면(9·11)에 걸쳐 있음</li>
+    <li>확정 안내 배너("확정 후엔 일정 변경이 어려워요 · 제출된 응답은 시스템이 자동으로 확인해 조율해요")는 화면 3과 동일하게 <strong>"응답 완료" 버튼 바로 위(footer)에 위치</strong> — 위쪽에 참석형태·모드정보·안내·개인정보 문구가 쌓여 카드 목록 영역이 눌리는 문제를 방지하기 위해 처음부터 이 위치로 설계함(화면 3에서 겪었던 레이아웃 겹침 이슈를 사전에 반영)</li>
+    <li><strong>반영 완료</strong>: 배너 문구는 <code>project_handoff.md</code> "AI 활용 범위" 절(이 흐름은 전부 규칙 기반 자동화이며 LLM 불필요)과 일치하도록 "AI가 확인 후 조율해요" → "제출된 응답은 시스템이 자동으로 확인해 조율해요"로 수정 완료(화면 3과 동일한 이슈였음)</li>
+    <li>개인정보 안내("응답 내용은 개별 공개되지 않고, 집계 결과만 전달돼요")도 화면 3과 동일한 이유로 추가 — <code>screen_specs.md</code> 화면 5·6 스펙 기준으로 이미 참인 내용을 사용자에게도 명시</li>
+    <li>아이콘은 전부 <strong>인라인 SVG</strong>(외부 CDN 웹폰트 의존 없음) — <code>wireframe_01_slot_response.html</code>·<code>wireframe_02_agenda.html</code>·<code>wireframe_03_meeting_create.html</code>과 동일한 방식으로 처음부터 작성</li>
+    <li>상단 우측은 <code>USER.name</code>, <code>USER.department</code>·<code>USER.rank</code> 순으로 표시(선택 참석자는 <code>position</code>이 없는 사원급 데모 — 화면 3의 필수 참석자·주최자 예시와 대비되도록 다른 인물로 목업)</li>
+  </ul>
+</div>
+
+<script>
+  const CANDIDATES = [
+    { id: 1, day: "목", date: "7/10", time: "14:00 ~ 15:00" },
+    { id: 2, day: "금", date: "7/11", time: "10:30 ~ 11:30" },
+    { id: 3, day: "월", date: "7/13", time: "16:00 ~ 17:00" },
+    { id: 4, day: "화", date: "7/14", time: "09:30 ~ 10:30" },
+    { id: 5, day: "수", date: "7/15", time: "13:00 ~ 14:00" },
+  ];
+
+  // 후보별 응답 상태 — 기본값 "available" (SLOT_RESPONSE 레코드 없음 = 가능 처리와 동일한 규칙)
+  const responses = {};
+  CANDIDATES.forEach((c) => { responses[c.id] = "available"; });
+
+  const candidateList = document.getElementById("candidateList");
+  const shortlistFooter = document.getElementById("shortlistFooter");
+
+  // 목록이 더 남아있을 때만 footer 위에 그림자로 경계 표시, 맨 아래까지 스크롤하면 사라짐
+  function updateFooterBoundary() {
+    const atBottom = candidateList.scrollTop + candidateList.clientHeight >= candidateList.scrollHeight - 2;
+    shortlistFooter.classList.toggle("show-boundary", !atBottom);
+  }
+  candidateList.addEventListener("scroll", updateFooterBoundary);
+
+  function renderCandidates() {
+    candidateList.innerHTML = CANDIDATES.map((c) => {
+      const state = responses[c.id];
+      return `
+        <div class="candidate-card ${state === "unavailable" ? "marked-unavailable" : ""}" data-id="${c.id}">
+          <div class="candidate-datetime">${c.day} ${c.date}<div class="candidate-date-sub">${c.time}</div></div>
+          <div class="candidate-choice" data-id="${c.id}">
+            <button type="button" data-choice="available" class="${state === "available" ? "active-available" : ""}">가능</button>
+            <button type="button" data-choice="unavailable" class="${state === "unavailable" ? "active-unavailable" : ""}">불가</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+  renderCandidates();
+  updateFooterBoundary();
+
+  const toast = document.getElementById("saveToast");
+  let toastTimer = null;
+  function showToast(message) {
+    toast.textContent = message;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 1200);
+  }
+
+  candidateList.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-choice]");
+    if (!btn) return;
+    const id = Number(btn.closest(".candidate-choice").dataset.id);
+    responses[id] = btn.dataset.choice;
+    renderCandidates();
+    showToast("✓ 저장됨");
+  });
+
+  // 참석 형태 선택 — 회의당 1회, 선택 전에는 후보 목록 잠금
+  const ATTENDANCE_LABELS = { offline: "대면만", online: "온라인만", either: "둘 다 가능" };
+  let attendanceMode = null;
+  const attendanceSegmented = document.getElementById("attendanceSegmented");
+  const candidateWrap = document.getElementById("candidateWrap");
+  const completeBtn = document.getElementById("completeBtn");
+  const completeHint = document.getElementById("completeHint");
+
+  attendanceSegmented.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-mode]");
+    if (!btn) return;
+    attendanceMode = btn.dataset.mode;
+    attendanceSegmented.querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("active", b.dataset.mode === attendanceMode);
+    });
+    candidateWrap.classList.remove("locked");
+    completeBtn.disabled = false;
+  });
+
+  // "응답 완료" — 5개 전부 불가인지에 따라 문구·후속 처리 분기
+  const completeConfirmOverlay = document.getElementById("completeConfirmOverlay");
+  const completeConfirmTitle = document.getElementById("completeConfirmTitle");
+  const completeConfirmSummary = document.getElementById("completeConfirmSummary");
+
+  function allUnavailable() {
+    return CANDIDATES.every((c) => responses[c.id] === "unavailable");
+  }
+
+  function getAvailableList() {
+    return CANDIDATES
+      .filter((c) => responses[c.id] === "available")
+      .map((c) => `${c.day} ${c.date} ${c.time}`)
+      .join(", ");
+  }
+
+  completeBtn.addEventListener("click", () => {
+    if (completeBtn.disabled) return; // 참석 형태 미선택 시 도달 불가 (안전장치)
+    const allNo = allUnavailable();
+    if (allNo) {
+      completeConfirmTitle.textContent = "정말 전부 불가로 응답하시겠습니까?";
+      completeConfirmSummary.innerHTML = `
+        선택한 참석 형태: <strong>${ATTENDANCE_LABELS[attendanceMode] || "-"}</strong><br>
+        압축된 후보 5개 전부 "불가"로 표시돼 있어요.
+        <div class="warn-line">확인을 누르면 이 회의에 <strong>불참</strong>으로 기록돼요. 별도 재조율 없이 필수 참석자 기준으로 회의가 그대로 진행돼요.</div>
+      `;
+    } else {
+      completeConfirmTitle.textContent = "응답을 완료하시겠습니까?";
+      completeConfirmSummary.innerHTML = `
+        선택한 참석 형태: <strong>${ATTENDANCE_LABELS[attendanceMode] || "-"}</strong><br>
+        가능: ${getAvailableList()}
+        <div class="muted-line">확인을 누르면 응답 완료 시각이 기록돼요. 선택 참석자 전원이 완료하면 마감 전이라도 회의가 확정돼요.</div>
+      `;
+    }
+    completeConfirmOverlay.classList.add("show");
+  });
+  document.getElementById("completeConfirmCancel").addEventListener("click", () => {
+    completeConfirmOverlay.classList.remove("show");
+  });
+  document.getElementById("completeConfirmOk").addEventListener("click", () => {
+    completeConfirmOverlay.classList.remove("show");
+    const allNo = allUnavailable();
+    completeHint.style.display = "block";
+    if (allNo) {
+      completeHint.textContent = "불참으로 기록됐어요 · 회의 후 회의록을 확인해주세요";
+      showToast("✓ 불참으로 기록됨");
+    } else {
+      completeHint.textContent = "✓ 응답 완료됨 · 마감 전까지 계속 수정할 수 있어요";
+      showToast("✓ 응답 완료");
+    }
+  });
+  // ---- 하단 탭바 터치 이동 (전 화면 공통 패턴) ----
+  const TAB_ROUTES = {
+    "예약": "예약 화면(화면 17)",
+    "내 회의": "내 회의 화면(화면 1)",
+    "알림": "알림 화면(화면 11)",
+    "내 정보": "내 정보 화면(화면 16)",
+  };
+  document.querySelector(".tab-bar").addEventListener("click", (e) => {
+    const item = e.target.closest(".tab-bar-item");
+    if (!item || item.classList.contains("active")) return;
+    const label = item.textContent.trim();
+    if (TAB_ROUTES[label]) showToast(`→ ${TAB_ROUTES[label]}로 이동`);
+  });
+</script>
+
+</body>
+</html>

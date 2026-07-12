@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>와이어프레임 — 회의록·향후 추진 과제 화면</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #1a1a1a;
+    --border-light: #c9c9c9;
+    --page-bg: #e9e9e7;
+    --card-bg: #ffffff;
+    --accent-red: #c0392b;
+    --accent-green: #1e7a3d;
+    --accent-amber: #9c6f00;
+    --accent-amber-bg: #fffaeb;
+    --accent-amber-border: #f2cb5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 16px;
+    background: var(--page-bg);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .frame-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+  .app-card {
+    width: 100%;
+    max-width: 390px;
+    background: var(--card-bg);
+    border: 1.5px solid var(--border);
+    height: 844px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .status-bar {
+    height: 24px;
+    flex-shrink: 0;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .status-icons { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+  .screen-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    position: relative;
+  }
+  .tab-bar {
+    height: 56px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-light);
+    background: #fafaf9;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-around;
+    padding-top: 8px;
+  }
+  .tab-bar-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    font-size: 9.5px;
+    color: var(--muted);
+  }
+  .tab-bar-item.active { color: var(--ink); font-weight: 700; }
+  .notif-icon-wrap { position: relative; display: inline-flex; }
+  .notif-dot {
+    position: absolute;
+    top: -1px; right: -1px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #d33;
+    border: 1px solid var(--card-bg);
+  }
+
+  .toast {
+    position: absolute;
+    bottom: 101px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--ink);
+    color: #fff;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    white-space: nowrap;
+    max-width: 320px;
+    text-align: center;
+    z-index: 45;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 헤더 */
+  .header {
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .back-arrow {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink);
+    flex-shrink: 0;
+  }
+  .header-label { font-size: 11px; color: var(--muted); font-weight: 700; }
+  .meeting-title { font-size: 17px; font-weight: 700; margin: 0 0 6px; line-height: 1.3; }
+  .meeting-meta { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+
+  /* 데모 컨트롤 (실제 앱 UI 아님) */
+  .demo-controls {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    background: #fff8e6;
+    border-bottom: 1px solid #e0c97a;
+    font-size: 10px;
+    color: #7a5c00;
+  }
+  .demo-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+  .demo-chip {
+    padding: 3px 8px;
+    border: 1px solid #c9a63e;
+    background: #fff;
+    color: #7a5c00;
+    font-size: 9.5px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .demo-chip.active { background: #7a5c00; color: #fff; }
+
+  /* 본문 스크롤 영역 */
+  .body-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 16px 18px;
+    min-height: 60px;
+  }
+  .section { margin-bottom: 24px; }
+  .section-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .section-title { font-size: 13.5px; font-weight: 700; }
+  .ghost-btn {
+    background: #fff; color: var(--ink); border: 1px solid var(--ink);
+    padding: 6px 11px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; gap: 4px; white-space: nowrap;
+  }
+  .ghost-btn:disabled { color: var(--border-light); border-color: var(--border-light); cursor: default; }
+  .ghost-btn.small { padding: 5px 9px; font-size: 10.5px; }
+
+  /* 작성자 표시/변경 */
+  .author-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12px; }
+  .author-label { color: var(--muted); font-weight: 700; font-size: 10.5px; }
+  .author-name { font-weight: 700; }
+  .author-select-wrap { display: none; align-items: center; gap: 6px; margin-bottom: 10px; }
+  .author-select-wrap.show { display: flex; }
+
+  /* 자동 채워지는 회의록 양식 필드 (읽기 전용) */
+  .meta-box {
+    border: 1px solid var(--border-light);
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+  .meta-row { display: flex; gap: 8px; padding: 4px 0; align-items: flex-start; }
+  .meta-row + .meta-row { border-top: 1px solid #f0f0ee; }
+  .meta-label { flex-shrink: 0; width: 56px; color: var(--muted); font-weight: 700; font-size: 10.5px; padding-top: 1px; }
+  .meta-value { flex: 1; }
+  .agenda-item-line { margin-bottom: 4px; }
+  .agenda-item-line:last-child { margin-bottom: 0; }
+  .agenda-attachment-chip {
+    display: inline-flex; align-items: center; gap: 3px; margin-left: 6px;
+    font-size: 10px; color: var(--muted); cursor: pointer; white-space: nowrap;
+  }
+  .agenda-attachment-chip:hover { color: var(--ink); }
+
+  .notes-subtitle { font-size: 12px; font-weight: 700; }
+
+  .notes-textarea {
+    width: 100%;
+    min-height: 130px;
+    border: 1px solid var(--border-light);
+    padding: 11px 12px;
+    font-size: 12.5px;
+    line-height: 1.7;
+    font-family: inherit;
+    color: var(--ink);
+    resize: vertical;
+  }
+  .notes-textarea::placeholder { color: #9c9c9c; }
+  .notes-textarea:disabled { background: #f7f7f5; color: var(--muted); resize: none; }
+  .notes-meta { font-size: 10.5px; color: var(--muted); margin-top: 6px; }
+  .notes-meta .registered { color: var(--accent-green); font-weight: 700; }
+
+  /* 향후 추진 과제 (구 "액션아이템") */
+  .action-item-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0ee;
+  }
+  .action-item-row:last-child { border-bottom: none; }
+  .action-check {
+    width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;
+    border: 1.5px solid var(--border-light); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; color: #fff;
+  }
+  .action-check.done { background: var(--accent-green); border-color: var(--accent-green); }
+  .action-item-body { flex: 1; min-width: 0; }
+  .action-item-content { font-size: 12.5px; font-weight: 600; line-height: 1.4; }
+  .action-item-row.done .action-item-content { color: var(--muted); text-decoration: line-through; font-weight: 400; }
+  .action-item-sub { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 10.5px; color: var(--muted); }
+  .assignee-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: #f0f0ee; padding: 2px 7px; border-radius: 10px; font-weight: 600; color: var(--ink);
+  }
+  .due-chip { color: var(--muted); }
+  .due-chip.overdue { color: var(--accent-red); font-weight: 700; }
+  .action-item-delete {
+    flex-shrink: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+    color: var(--muted); cursor: pointer;
+  }
+  .action-empty { font-size: 11.5px; color: var(--muted); padding: 8px 0; }
+
+  /* 향후 추진 과제 추가 폼 */
+  .add-item-form {
+    display: none;
+    border: 1px solid var(--border-light);
+    padding: 12px;
+    margin-top: 10px;
+  }
+  .add-item-form.show { display: block; }
+  .add-item-field { margin-bottom: 9px; }
+  .add-item-field:last-child { margin-bottom: 0; }
+  .add-item-label { font-size: 10.5px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
+  .add-item-input {
+    width: 100%; border: 1px solid var(--border-light); padding: 8px 9px;
+    font-size: 12px; font-family: inherit; color: var(--ink); background: #fff;
+  }
+  .add-item-row2 { display: flex; gap: 8px; }
+  .add-item-row2 > div { flex: 1; min-width: 0; }
+  .assignee-select {
+    width: 100%; border: 1px solid var(--border-light); padding: 8px 9px;
+    font-size: 12px; font-family: inherit; color: var(--ink); background: #fff;
+  }
+  .date-field {
+    border: 1px solid var(--border-light); padding: 8px 9px;
+    font-size: 12px; color: var(--ink); background: #fff; cursor: pointer;
+  }
+  .add-item-actions { display: flex; gap: 8px; margin-top: 11px; }
+  .add-item-actions button {
+    flex: 1; padding: 9px; font-size: 12px; font-weight: 700; cursor: pointer;
+    font-family: inherit; border: 1px solid var(--ink);
+  }
+  .add-item-cancel { background: #fff; color: var(--ink); }
+  .add-item-confirm { background: var(--ink); color: #fff; }
+
+  /* 날짜 선택 캘린더 (화면2·화면17과 동일한 시각 언어 재사용, 컴팩트 버전) */
+  .calendar-panel { display: none; border: 1px solid var(--border-light); padding: 8px; margin-top: 8px; background: #fff; }
+  .calendar-panel.show { display: block; }
+  .calendar-header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-bottom: 6px; }
+  .calendar-header-spacer { visibility: hidden; }
+  .calendar-month-nav { display: flex; align-items: center; justify-content: center; gap: 2px; }
+  .calendar-nav-btn { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--ink); flex-shrink: 0; }
+  .calendar-month-label { font-size: 12px; font-weight: 700; padding: 0 2px; }
+  .calendar-today-btn { font-size: 10.5px; font-weight: 700; color: var(--ink); cursor: pointer; padding: 3px 8px; border: 1px solid var(--border-light); justify-self: end; white-space: nowrap; }
+  .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+  .calendar-dow { font-size: 9px; color: var(--muted); text-align: center; padding: 2px 0; font-weight: 700; }
+  .calendar-day { height: 26px; display: flex; align-items: center; justify-content: center; font-size: 10.5px; cursor: pointer; color: var(--ink); }
+  .calendar-day.empty { visibility: hidden; }
+  .calendar-day.selected { background: var(--ink); color: #fff; font-weight: 700; }
+  .calendar-day.today-marker { border: 1px solid var(--ink); }
+  .calendar-footer-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .calendar-footer-btn { flex: 1; text-align: center; padding: 6px 0; font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .calendar-footer-btn.clear { color: var(--muted); background: #fff; border: 1px solid var(--border-light); }
+  .calendar-footer-btn.confirm { color: #fff; background: var(--ink); border: 1px solid var(--ink); }
+
+  /* 안내 배너(작성자 아닌 경우) */
+  .notice-box {
+    border: 1px solid var(--accent-amber-border);
+    background: var(--accent-amber-bg);
+    color: var(--accent-amber);
+    padding: 10px 12px;
+    font-size: 11.5px;
+    line-height: 1.6;
+    margin-bottom: 10px;
+  }
+
+  /* 하단 고정 액션 */
+  .footer {
+    flex-shrink: 0;
+    padding: 10px 16px 12px;
+    background: #fafaf9;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: box-shadow 0.15s ease;
+  }
+  .footer.show-boundary { box-shadow: 0 -3px 8px rgba(0,0,0,0.10); }
+  .footer-row { display: flex; gap: 8px; }
+  .footer-btn {
+    flex: 1;
+    padding: 11px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    border: 1px solid var(--ink);
+  }
+  .footer-btn.primary { background: var(--ink); color: #fff; }
+  .footer-btn.secondary { background: #fff; color: var(--ink); }
+  .footer-btn.disabled { background: #fff; color: var(--border-light); border-color: var(--border-light); cursor: default; }
+
+  /* 확인 팝업 */
+  .confirm-modal-overlay {
+    position: absolute; inset: 0; background: rgba(20,20,20,0.4);
+    z-index: 30; display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  .confirm-modal-overlay.show { display: flex; }
+  .confirm-modal-box { background: #fff; border: 1.5px solid var(--ink); width: 100%; padding: 18px; }
+  .confirm-modal-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+  .confirm-modal-body { font-size: 12px; color: var(--ink); line-height: 1.7; margin-bottom: 16px; }
+  .confirm-modal-actions { display: flex; gap: 8px; }
+  .confirm-modal-actions button {
+    flex: 1; padding: 10px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    font-family: inherit; border: 1px solid var(--ink);
+  }
+  .confirm-btn-cancel { background: #fff; color: var(--ink); }
+  .confirm-btn-ok { background: var(--ink); color: #fff; }
+
+  /* 구현 노트 */
+  .dev-notes {
+    width: 100%;
+    max-width: 390px;
+    margin-top: 24px;
+    border: 1px dashed var(--border);
+    padding: 16px 18px;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--ink);
+    background: #fff;
+  }
+  .dev-notes h3 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .dev-notes code { background: #f0f0ee; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  .dev-notes ul { margin: 4px 0 12px; padding-left: 18px; }
+  .dev-notes ul:last-child { margin-bottom: 0; }
+  .dev-notes .warn { color: #8a4b00; }
+</style>
+</head>
+<body>
+
+<div class="frame-label">화면 10 · 회의록·향후 추진 과제 (v2 → 최초 제작, AI 초안 생성 포함)</div>
+
+<div class="app-card">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span class="status-icons">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19v-3M9 19v-6M14 19v-9M19 19V5"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5a15 15 0 0118 0"/><path d="M6.2 12a10.5 10.5 0 0111.6 0"/><path d="M9.5 15.5a5.8 5.8 0 015 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.2v3.6"/><rect x="4" y="9" width="10" height="6" fill="currentColor" stroke="none"/></svg>
+    </span>
+  </div>
+
+  <div class="screen-content">
+    <div class="header">
+      <div class="header-top">
+        <div class="back-arrow"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></div>
+        <div class="header-label">회의록 · 향후 추진 과제</div>
+      </div>
+      <div class="meeting-title">3분기 로드맵 논의</div>
+      <div class="meeting-meta">7/14(화) 14:00~15:00 · 3층 회의실 A</div>
+    </div>
+
+    <div class="demo-controls">
+      [데모 전용] 이 화면을 보는 로그인 사용자를 바꿔가며 회의록 작성 권한 차이를 확인합니다. 실제 화면에는 이 컨트롤이 없습니다.
+      <div class="demo-row" id="userDemoRow">
+        <span class="demo-chip" data-user="김민준">김민준 (주최자)</span>
+        <span class="demo-chip" data-user="박서연">박서연</span>
+        <span class="demo-chip" data-user="이지훈">이지훈</span>
+      </div>
+    </div>
+
+    <div class="body-scroll" id="bodyScroll">
+      <div class="section">
+        <div class="section-title-row">
+          <span class="section-title">회의록</span>
+        </div>
+
+        <div class="author-row">
+          <span class="author-label">작성자</span>
+          <span class="author-name" id="authorNameEl"></span>
+          <button type="button" class="ghost-btn small" id="changeAuthorBtn" style="display:none;">변경</button>
+        </div>
+        <div class="author-select-wrap" id="authorSelectWrap">
+          <select class="assignee-select" id="authorSelect"></select>
+          <button type="button" class="ghost-btn small" id="confirmAuthorBtn">확인</button>
+          <button type="button" class="ghost-btn small" id="cancelAuthorBtn">취소</button>
+        </div>
+
+        <div class="meta-box">
+          <div class="meta-row"><span class="meta-label">날짜</span><span class="meta-value">2026.07.14 (화)</span></div>
+          <div class="meta-row"><span class="meta-label">시간</span><span class="meta-value">14:00 ~ 15:00</span></div>
+          <div class="meta-row"><span class="meta-label">참석인원</span><span class="meta-value" id="attendeesLine"></span></div>
+          <div class="meta-row"><span class="meta-label">안건</span><div class="meta-value" id="agendaValue"></div></div>
+        </div>
+
+        <div class="section-title-row">
+          <span class="notes-subtitle">회의 내용</span>
+          <button type="button" class="ghost-btn small" id="aiDraftBtn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+            AI 초안 생성
+          </button>
+        </div>
+        <div class="notice-box" id="authorOnlyNotice" style="display:none;"></div>
+        <textarea class="notes-textarea" id="notesTextarea" placeholder="회의 중이나 회의 후에 편하게 메모를 남겨보세요. 러프하게 적어도 &quot;AI 초안 생성&quot;으로 다듬을 수 있어요."></textarea>
+        <div class="notes-meta" id="notesMeta"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title-row">
+          <span class="section-title">향후 추진 과제</span>
+          <button type="button" class="ghost-btn small" id="addItemToggleBtn">+ 항목 추가</button>
+        </div>
+        <div id="actionItemList"></div>
+
+        <div class="add-item-form" id="addItemForm">
+          <div class="add-item-field">
+            <div class="add-item-label">내용(필수)</div>
+            <input type="text" class="add-item-input" id="newItemContent" placeholder="예: 예산안 초안 회람">
+          </div>
+          <div class="add-item-row2">
+            <div class="add-item-field">
+              <div class="add-item-label">담당자</div>
+              <select class="assignee-select" id="newItemAssignee"></select>
+            </div>
+            <div class="add-item-field">
+              <div class="add-item-label">마감일</div>
+              <div class="date-field" id="newItemDateField">마감일 선택</div>
+            </div>
+          </div>
+          <div class="calendar-panel" id="calendarPanel">
+            <div class="calendar-header">
+              <span class="calendar-header-spacer"></span>
+              <span class="calendar-month-nav">
+                <span class="calendar-nav-btn" id="calPrev"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></span>
+                <span class="calendar-month-label" id="calMonthLabel"></span>
+                <span class="calendar-nav-btn" id="calNext"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></span>
+              </span>
+              <span class="calendar-today-btn" id="calTodayBtn">오늘</span>
+            </div>
+            <div class="calendar-grid" id="calGrid"></div>
+            <div class="calendar-footer-actions">
+              <span class="calendar-footer-btn clear" id="calClearBtn">삭제</span>
+              <span class="calendar-footer-btn confirm" id="calConfirmBtn">선택</span>
+            </div>
+          </div>
+          <div class="add-item-actions">
+            <button type="button" class="add-item-cancel" id="cancelItemBtn">취소</button>
+            <button type="button" class="add-item-confirm" id="confirmItemBtn">추가</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="minutesToast"></div>
+
+    <div class="footer" id="footerActions"></div>
+
+    <div class="confirm-modal-overlay" id="confirmOverlay">
+      <div class="confirm-modal-box">
+        <div class="confirm-modal-title" id="confirmTitle"></div>
+        <div class="confirm-modal-body" id="confirmBody"></div>
+        <div class="confirm-modal-actions">
+          <button type="button" class="confirm-btn-cancel" id="confirmCancelBtn">취소</button>
+          <button type="button" class="confirm-btn-ok" id="confirmOkBtn">확인</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/></svg>예약</div>
+    <div class="tab-bar-item active"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>내 회의</div>
+    <div class="tab-bar-item"><span class="notif-icon-wrap"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10.5a6 6 0 1112 0c0 4.2 1.5 5.5 1.5 5.5h-15S6 14.7 6 10.5z"/><path d="M9.7 18.5a2.3 2.3 0 004.6 0"/></svg><span class="notif-dot"></span></span>알림</div>
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20c0-4.14 3.36-7.5 7.5-7.5s7.5 3.36 7.5 7.5"/></svg>내 정보</div>
+  </div>
+</div>
+
+<div class="dev-notes">
+  <h3>구현 노트 (Claude Code 참고용)</h3>
+  <ul>
+    <li><strong>이 화면은 원래 스펙상 v2로 연기됐던 "10. 회의록·액션아이템" 화면의 최초 제작본</strong>이며, 이번 라운드에서 사용자 피드백을 반영해 대폭 재설계했다. 상세 스펙 문서 <code>v2_expansion_scope.md</code>·데이터 모델 문서 <code>db_model_full.md</code>가 없어(<code>db_model_mvp.md</code>에도 <code>MEETING_NOTE</code>/<code>ACTION_ITEM</code> 미정의) 계속 자체 설계로 진행 중이며, 아래는 전부 <span class="warn">현재까지의 가정/결정</span>이다.</li>
+    <li><strong>화면 표시 용어 변경 — "액션아이템" → "향후 추진 과제"</strong>로 화면에 노출되는 텍스트만 교체(내부 데이터 모델 명칭은 계속 <code>ACTION_ITEM</code> 유지). 회의 후속 조치를 담당자·마감일과 함께 추적하는 투두(할 일) 목록이라는 의미는 동일.</li>
+    <li><strong>회의록 작성 가능 시점 갱신 — "회의 시작부터 실시간 작성 가능"으로 확정</strong>(기존엔 "회의 종료 후"만 가정). <code>wireframe_09_meeting_detail_3.html</code>의 진입 버튼도 회의가 시작된 순간(진행 중·종료 공통, <code>meetingStarted()</code>)부터 "회의록 확인하기"로 활성화되도록 갱신함(데모 컨트롤도 참석 상태 × 회의 진행 상태 2개 축으로 분리해 모든 조합 확인 가능해짐).</li>
+    <li><strong>작성자 제도 신설</strong>: 회의록 작성자는 기본값 <strong>주최자</strong>(이 데모에서는 "김민준")이며, <strong>주최자가 참석자 중 다른 사람을 작성자로 재지정할 수 있음</strong>("변경" 버튼 — 로그인 사용자가 주최자일 때만 노출). <strong>편집 권한은 현재 지정된 작성자 1인에게만 있음</strong> — 작성자가 아닌 참석자는 "회의 내용" textarea가 읽기 전용(회색 배경)으로 바뀌고, "이 회의록은 {작성자}님만 작성할 수 있어요" 안내 배너가 뜨며 AI 초안 생성·임시저장·등록 버튼도 전부 숨겨짐(열람은 항상 가능). 데모에서는 상단 [데모 전용] 컨트롤로 로그인 사용자를 김민준(주최자)/박서연/이지훈 중 바꿔가며 권한 차이를 확인할 수 있음. <strong>향후 추진 과제 섹션은 이 제한과 무관하게 참석자 누구나 추가·완료체크·삭제 가능</strong>(회의록 작성 권한 제한은 회의록에만 적용).</li>
+    <li><strong>회의록 양식 필드 확정</strong>: 회의록 상단에 <strong>날짜·시간·참석인원(직위순 나열, 동일 직위는 이름 가나다순)·안건 제목</strong> 4개 필드를 <code>MEETING</code>/<code>PARTICIPANT</code>/<code>AGENDA</code> 데이터로 자동 채워 읽기 전용으로 표시(작성자도 이 필드는 직접 수정하지 않음). 실제로 작성자가 작성하는 부분은 그 아래 <strong>"회의 내용"</strong> 텍스트 영역 하나뿐.</li>
+    <li><strong>참석인원 정렬 규칙(재확인)</strong>: "직위순"이 배열 순서가 아니라 <strong>실제 직위 서열 기준 정렬</strong>이어야 함을 확인해 <code>RANK_ORDER</code>(사장·부사장·전무·상무·이사·부장·차장·과장·대리·주임·사원 — 회사마다 체계가 다를 수 있어 이 데모 데이터에 등장하는 직위만 임시 순서표로 사용) 기준 정렬 함수(<code>sortByRankThenName</code>)를 추가해 렌더링. <strong>동일 직위는 이름 가나다순(<code>localeCompare(name, "ko")</code>)</strong>으로 2차 정렬. 예: 과장 김민준 → 대리 박서연·최유나(가나다순) → 사원 이지훈·정다은·한소희(가나다순).</li>
+    <li><strong>안건 첨부파일 반영</strong>: 화면4(안건 등록, <code>wireframe_02_agenda_1.html</code>)에 이미 <code>AGENDA.attachment_url</code> 첨부파일 기능이 있으므로, 화면10의 "안건" 필드도 각 안건에 첨부파일이 있으면 파일명 칩(클립 아이콘+파일명, 클릭 시 데모 토스트로 다운로드 시뮬레이션)을 함께 표시하도록 보완. 첨부파일이 없는 안건은 제목만 표시.</li>
+    <li><strong>"AI 초안 생성" 버튼의 정확한 동작 방식(사용자 질문에 대한 답)</strong>: 녹음·음성인식(STT) 기반이 <strong>아니며</strong>, 작성자가 이미 "회의 내용" 칸에 러프하게 입력해둔 메모(문장이 안 갖춰진 키워드·조각글이어도 무방)를 원본으로 삼아, 실제 구현 시 LLM(예: Claude API) 호출을 통해 다듬어진 문단(요약·결정사항 등)으로 재정리해 <strong>같은 칸에 덮어써 채워 넣는</strong> 용도다. 위의 날짜·시간·참석인원·안건 같은 자동 채움 필드는 AI가 건드리지 않고 시스템이 그대로 유지한다. <strong>"회의 내용"이 비어 있으면 정리할 원본이 없으므로 버튼이 비활성화</strong>된다(이 와이어프레임 데모에서는 실제 LLM 호출 없이 700ms 지연 후 고정 예시 문구로 대체 — 이미 내용이 있으면 "기존 내용을 덮어쓸까요?" 확인 팝업을 먼저 띄움).</li>
+    <li><strong>저장 흐름을 "임시저장" / "등록" 2단계로 분리</strong>: 등록 전까지는 하단에 "임시저장"(보조)·"등록"(주요) 버튼이 함께 노출되며, <strong>임시저장은 몇 번이든 자유롭게 반복 가능</strong>하고(참석자 전원 알림 없음, 작성자 본인 및 다른 참석자 모두 그 시점까지의 내용을 언제든 다시 열어 확인 가능), <strong>"등록"을 누르는 순간에만</strong>(확인 팝업 통과 후) 회의록이 최종 등록되고 <strong>해당 회의 참석 인원 전체에게 "회의록 등록" 안내 알림(NOTIFICATION)이 발송</strong>된다. 등록 이후에는 버튼이 "저장" 하나로 바뀌어 계속 내용을 수정할 수 있지만, 수정 시마다 다시 알림을 보내지는 않는 것으로 가정(스팸 방지 목적 — 재검토 여지 있음). <code>notesMeta</code> 영역에 "임시저장됨 · {시각}" 또는 "등록됨 · {시각} · 참석자 전원에게 알림 발송됨"을 표시.</li>
+    <li><strong>제안 데이터 모델(신규, 문서 미반영)</strong>: <code>MEETING_NOTE</code>(meeting_id, content, author_user_id, is_ai_generated, status: 임시저장/등록, registered_at, updated_at). <code>ACTION_ITEM</code>(id, meeting_id, content, assignee_user_id, due_date nullable, is_done, created_by, created_at). <code>NOTIFICATION.type</code>에 <strong>"회의록등록"</strong> 신규 추가 필요(§2의 기존 "응답요청"·"불참안내"에 이어 3번째 신규 타입) — 등록 시 <code>MEETING</code>의 전체 <code>PARTICIPANT</code>에게 발송.</li>
+    <li><strong>향후 추진 과제 UI</strong>: 체크박스로 완료 토글(완료 시 취소선), "+ 항목 추가"로 인라인 폼(담당자 select, 마감일은 화면2·화면17과 동일한 커스텀 캘린더 재사용해 날짜만 선택, 선택 사항). 마감일이 지났고 미완료면 빨간색 강조. 개별 삭제 가능.</li>
+    <li>다른 폼 화면과 동일하게 스크롤 시에만 하단 버튼 영역 위 그림자 표시(<code>show-boundary</code>), 아이콘은 전부 인라인 SVG.</li>
+    <li>이 화면과 <code>wireframe_09_meeting_detail_3.html</code>은 동일한 가상의 회의("3분기 로드맵 논의", 7/14(화) 14:00~15:00, 3층 회의실 A, 참석자 6인 — 김민준(과장·주최자)·박서연(대리)·이지훈(사원)·최유나(대리)·정다은(사원)·한소희(사원))를 공유하도록 데모 데이터를 맞췄다.</li>
+  </ul>
+</div>
+
+<script>
+  // ── 데모 데이터 ──────────────────────────────────────────
+  // 화면9(wireframe_09_meeting_detail_3.html)와 동일한 회의·참석자 구성 재사용, 직위(rank) 추가
+  const PARTICIPANTS = [
+    { name: "김민준", rank: "과장", isOrganizer: true },
+    { name: "박서연", rank: "대리" },
+    { name: "이지훈", rank: "사원" },
+    { name: "최유나", rank: "대리" },
+    { name: "정다은", rank: "사원" },
+    { name: "한소희", rank: "사원" },
+  ];
+  const PARTICIPANT_NAMES = PARTICIPANTS.map((p) => p.name);
+  const ORGANIZER = PARTICIPANTS.find((p) => p.isOrganizer).name; // "김민준"
+
+  // 참석인원 정렬 기준 — 직위순(높은 직위가 먼저), 동일 직위는 이름 가나다순
+  // 회사마다 직위 체계가 다를 수 있어 데모에서는 이 데이터에 등장하는 직위만 포함한 순서표를 사용
+  const RANK_ORDER = ["사장", "부사장", "전무", "상무", "이사", "부장", "차장", "과장", "대리", "주임", "사원"];
+  function sortByRankThenName(list) {
+    return [...list].sort((a, b) => {
+      const ra = RANK_ORDER.indexOf(a.rank);
+      const rb = RANK_ORDER.indexOf(b.rank);
+      if (ra !== rb) return ra - rb;
+      return a.name.localeCompare(b.name, "ko");
+    });
+  }
+
+  const AGENDA_ITEMS = [
+    { title: "3분기 목표 리뷰", hasAttachment: true, fileName: "3분기_로드맵_초안.pdf" },
+    { title: "예산안 논의", hasAttachment: true, fileName: "예산안_초안.xlsx" },
+    { title: "팀 리소스 배분", hasAttachment: false },
+  ];
+
+  const AI_DRAFT_TEXT =
+    "■ 논의 요약\n" +
+    "- 3분기 로드맵 우선순위를 리소스 여력 기준으로 재정렬하기로 합의\n" +
+    "- 신규 기능 A는 4분기로 연기, 대신 안정화 작업에 집중\n" +
+    "- 예산안은 재무팀 검토 후 다음 주 중 확정 예정\n\n" +
+    "■ 결정 사항\n" +
+    "- 팀 리소스는 안정화 60% / 신규기능 40% 비율로 배분\n" +
+    "- 다음 정기 회의는 4주 뒤 진행";
+
+  // ── 상태 ──────────────────────────────────────────
+  let currentUser = ORGANIZER;   // [데모 전용] 로그인 사용자
+  let noteAuthor = ORGANIZER;    // 회의록 작성자 (기본값 주최자, 주최자가 재지정 가능)
+  let registered = false;
+  let lastSavedAt = null;        // "임시저장" 또는 "등록" 마지막 시각(Date)
+
+  function isAuthor() { return currentUser === noteAuthor; }
+  function isOrganizer() { return currentUser === ORGANIZER; }
+
+  function pad2(n) { return String(n).padStart(2, "0"); }
+  function nowLabel() {
+    const d = new Date(2026, 6, 14, 15, 32); // 데모 고정 시각
+    return `7/14 ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  }
+
+  // ── 상단 메타(날짜/시간/참석인원/안건) — 자동 채움, 읽기 전용 ──
+  document.getElementById("attendeesLine").textContent =
+    sortByRankThenName(PARTICIPANTS).map((p) => `${p.rank} ${p.name}`).join(", ");
+
+  document.getElementById("agendaValue").innerHTML = AGENDA_ITEMS.map((a) => `
+    <div class="agenda-item-line">
+      ${a.title}${a.hasAttachment ? `
+      <span class="agenda-attachment-chip" data-file="${a.fileName}">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l6-6a2.83 2.83 0 114 4l-8.5 8.5a4.24 4.24 0 11-6-6l7.5-7.5"/></svg>${a.fileName}
+      </span>` : ""}
+    </div>
+  `).join("");
+
+  document.getElementById("agendaValue").addEventListener("click", (e) => {
+    const chip = e.target.closest(".agenda-attachment-chip");
+    if (!chip) return;
+    showToast(`📎 ${chip.dataset.file} 다운로드 (데모)`);
+  });
+
+  // ── 작성자 표시/변경 ──────────────────────────────────────────
+  const authorNameEl = document.getElementById("authorNameEl");
+  const changeAuthorBtn = document.getElementById("changeAuthorBtn");
+  const authorSelectWrap = document.getElementById("authorSelectWrap");
+  const authorSelect = document.getElementById("authorSelect");
+
+  authorSelect.innerHTML = PARTICIPANT_NAMES.map((n) => `<option value="${n}">${n}</option>`).join("");
+
+  function renderAuthorRow() {
+    authorNameEl.textContent = noteAuthor === ORGANIZER ? `${noteAuthor} (주최자)` : noteAuthor;
+    changeAuthorBtn.style.display = isOrganizer() ? "flex" : "none";
+    authorSelect.value = noteAuthor;
+  }
+
+  changeAuthorBtn.addEventListener("click", () => {
+    authorSelectWrap.classList.add("show");
+  });
+  document.getElementById("cancelAuthorBtn").addEventListener("click", () => {
+    authorSelectWrap.classList.remove("show");
+  });
+  document.getElementById("confirmAuthorBtn").addEventListener("click", () => {
+    const newAuthor = authorSelect.value;
+    authorSelectWrap.classList.remove("show");
+    if (newAuthor === noteAuthor) return;
+    noteAuthor = newAuthor;
+    renderAuthorRow();
+    renderNotesPermission();
+    renderFooter();
+    showToast(`✓ 작성자가 ${newAuthor}님으로 변경되었습니다`);
+  });
+
+  // ── 회의록 "회의 내용" 편집 권한 ──────────────────────────────────────────
+  const notesTextarea = document.getElementById("notesTextarea");
+  const notesMetaEl = document.getElementById("notesMeta");
+  const aiDraftBtn = document.getElementById("aiDraftBtn");
+  const authorOnlyNotice = document.getElementById("authorOnlyNotice");
+
+  function renderNotesPermission() {
+    const canEdit = isAuthor();
+    notesTextarea.disabled = !canEdit;
+    aiDraftBtn.style.display = canEdit ? "flex" : "none";
+    if (canEdit) {
+      authorOnlyNotice.style.display = "none";
+    } else {
+      authorOnlyNotice.style.display = "block";
+      authorOnlyNotice.textContent = `이 회의록은 ${noteAuthor}님만 작성할 수 있어요. 내용은 누구나 열람할 수 있어요.`;
+    }
+    updateAiDraftBtnState();
+  }
+
+  function updateAiDraftBtnState() {
+    if (!isAuthor()) return;
+    aiDraftBtn.disabled = notesTextarea.value.trim().length === 0;
+  }
+  notesTextarea.addEventListener("input", updateAiDraftBtnState);
+
+  function updateNotesMeta() {
+    if (!lastSavedAt) { notesMetaEl.innerHTML = ""; return; }
+    notesMetaEl.innerHTML = registered
+      ? `<span class="registered">등록됨</span> · ${lastSavedAt} · 참석자 전원에게 알림 발송됨`
+      : `임시저장됨 · ${lastSavedAt}`;
+  }
+
+  function fillAiDraft() {
+    aiDraftBtn.disabled = true;
+    aiDraftBtn.textContent = "생성 중…";
+    setTimeout(() => {
+      notesTextarea.value = AI_DRAFT_TEXT;
+      aiDraftBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>AI 초안 생성';
+      updateAiDraftBtnState();
+      showToast("✓ AI 초안이 생성되었습니다");
+    }, 700);
+  }
+
+  aiDraftBtn.addEventListener("click", () => {
+    if (!isAuthor() || notesTextarea.value.trim().length === 0) return;
+    openConfirm(
+      "기존 내용을 덮어쓸까요?",
+      "지금 \"회의 내용\"에 입력된 메모를 AI가 다듬어진 회의록 형태로 재정리해요. 지금 내용은 사라지고 정리된 내용으로 바뀌어요.",
+      fillAiDraft
+    );
+  });
+
+  // ── 향후 추진 과제 목록 렌더링 ──────────────────────────────────────────
+  let actionItems = [
+    { id: 1, content: "예산안 초안 회람", assignee: "박서연", dueDate: { year: 2026, month: 6, day: 18 }, done: false },
+    { id: 2, content: "신규 기능 A 연기 공지 초안 작성", assignee: "김민준", dueDate: { year: 2026, month: 6, day: 15 }, done: false },
+    { id: 3, content: "회의록 참석자 전체 공유", assignee: "정다은", dueDate: null, done: true },
+  ];
+  let nextItemId = 4;
+
+  const actionItemListEl = document.getElementById("actionItemList");
+
+  function dueChipHtml(item) {
+    if (!item.dueDate) return `<span class="due-chip">마감일 없음</span>`;
+    const d = item.dueDate;
+    const dateStr = `${d.month + 1}/${d.day}`;
+    const today = REAL_TODAY;
+    const isPast = (d.year < today.year) ||
+      (d.year === today.year && d.month < today.month) ||
+      (d.year === today.year && d.month === today.month && d.day < today.day);
+    const overdue = isPast && !item.done;
+    return `<span class="due-chip${overdue ? " overdue" : ""}">${overdue ? "지연 · " : "마감 "}${dateStr}</span>`;
+  }
+
+  function renderActionItems() {
+    if (actionItems.length === 0) {
+      actionItemListEl.innerHTML = `<div class="action-empty">아직 등록된 향후 추진 과제가 없어요</div>`;
+      return;
+    }
+    actionItemListEl.innerHTML = actionItems.map((item) => `
+      <div class="action-item-row${item.done ? " done" : ""}" data-id="${item.id}">
+        <div class="action-check${item.done ? " done" : ""}" data-action="toggle" data-id="${item.id}">
+          ${item.done ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' : ""}
+        </div>
+        <div class="action-item-body">
+          <div class="action-item-content">${item.content}</div>
+          <div class="action-item-sub">
+            <span class="assignee-chip">${item.assignee}</span>
+            ${dueChipHtml(item)}
+          </div>
+        </div>
+        <div class="action-item-delete" data-action="delete" data-id="${item.id}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  actionItemListEl.addEventListener("click", (e) => {
+    const toggleEl = e.target.closest('[data-action="toggle"]');
+    if (toggleEl) {
+      const id = Number(toggleEl.dataset.id);
+      const item = actionItems.find((i) => i.id === id);
+      if (item) { item.done = !item.done; renderActionItems(); }
+      return;
+    }
+    const delEl = e.target.closest('[data-action="delete"]');
+    if (delEl) {
+      const id = Number(delEl.dataset.id);
+      actionItems = actionItems.filter((i) => i.id !== id);
+      renderActionItems();
+      showToast("삭제되었습니다");
+    }
+  });
+
+  // ── 향후 추진 과제 추가 폼 ──────────────────────────────────────────
+  const addItemToggleBtn = document.getElementById("addItemToggleBtn");
+  const addItemForm = document.getElementById("addItemForm");
+  const newItemContent = document.getElementById("newItemContent");
+  const newItemAssignee = document.getElementById("newItemAssignee");
+  const newItemDateField = document.getElementById("newItemDateField");
+
+  newItemAssignee.innerHTML = PARTICIPANT_NAMES.map((p) => `<option value="${p}">${p}</option>`).join("");
+
+  function resetAddItemForm() {
+    newItemContent.value = "";
+    newItemAssignee.value = PARTICIPANT_NAMES[0];
+    newDueDate = null;
+    newItemDateField.textContent = "마감일 선택";
+    calendarPanel.classList.remove("show");
+  }
+
+  addItemToggleBtn.addEventListener("click", () => {
+    const willShow = !addItemForm.classList.contains("show");
+    addItemForm.classList.toggle("show", willShow);
+    if (willShow) resetAddItemForm();
+  });
+
+  document.getElementById("cancelItemBtn").addEventListener("click", () => {
+    addItemForm.classList.remove("show");
+  });
+
+  document.getElementById("confirmItemBtn").addEventListener("click", () => {
+    const content = newItemContent.value.trim();
+    if (!content) { showToast("내용을 입력해주세요"); return; }
+    actionItems.push({
+      id: nextItemId++,
+      content,
+      assignee: newItemAssignee.value,
+      dueDate: newDueDate,
+      done: false,
+    });
+    renderActionItems();
+    addItemForm.classList.remove("show");
+    showToast("✓ 향후 추진 과제가 추가되었습니다");
+  });
+
+  // ── 마감일 캘린더 (화면2·화면17과 동일한 시각 언어, 날짜만 선택) ──
+  const REAL_TODAY = { year: 2026, month: 6, day: 11 }; // 2026-07-11 (월은 0-indexed: 6=7월)
+  const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+  let calViewYear = REAL_TODAY.year;
+  let calViewMonth = REAL_TODAY.month;
+  let newDueDate = null;
+
+  const calendarPanel = document.getElementById("calendarPanel");
+  const calGrid = document.getElementById("calGrid");
+  const calMonthLabel = document.getElementById("calMonthLabel");
+
+  function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
+  function startWeekday(y, m) { return new Date(y, m, 1).getDay(); }
+
+  function renderCalendar() {
+    calMonthLabel.textContent = `${calViewYear}년 ${calViewMonth + 1}월`;
+    const total = daysInMonth(calViewYear, calViewMonth);
+    const startDay = startWeekday(calViewYear, calViewMonth);
+    let html = dayNames.map((d) => `<div class="calendar-dow">${d}</div>`).join("");
+    for (let i = 0; i < startDay; i++) html += `<div class="calendar-day empty"></div>`;
+    for (let d = 1; d <= total; d++) {
+      let cls = "calendar-day";
+      const isSelected = newDueDate && newDueDate.year === calViewYear && newDueDate.month === calViewMonth && newDueDate.day === d;
+      const isToday = REAL_TODAY.year === calViewYear && REAL_TODAY.month === calViewMonth && REAL_TODAY.day === d;
+      if (isSelected) cls += " selected";
+      else if (isToday) cls += " today-marker";
+      html += `<div class="${cls}" data-day="${d}">${d}</div>`;
+    }
+    calGrid.innerHTML = html;
+  }
+
+  newItemDateField.addEventListener("click", () => {
+    calendarPanel.classList.toggle("show");
+  });
+
+  calGrid.addEventListener("click", (e) => {
+    const cell = e.target.closest(".calendar-day:not(.empty)");
+    if (!cell) return;
+    newDueDate = { year: calViewYear, month: calViewMonth, day: Number(cell.dataset.day) };
+    newItemDateField.textContent = `${newDueDate.year}.${pad2(newDueDate.month + 1)}.${pad2(newDueDate.day)}`;
+    renderCalendar();
+    calendarPanel.classList.remove("show");
+  });
+
+  document.getElementById("calPrev").addEventListener("click", () => {
+    calViewMonth--; if (calViewMonth < 0) { calViewMonth = 11; calViewYear--; }
+    renderCalendar();
+  });
+  document.getElementById("calNext").addEventListener("click", () => {
+    calViewMonth++; if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
+    renderCalendar();
+  });
+  document.getElementById("calClearBtn").addEventListener("click", () => {
+    newDueDate = null;
+    newItemDateField.textContent = "마감일 선택";
+    renderCalendar();
+  });
+  document.getElementById("calTodayBtn").addEventListener("click", () => {
+    newDueDate = { ...REAL_TODAY };
+    calViewYear = REAL_TODAY.year;
+    calViewMonth = REAL_TODAY.month;
+    newItemDateField.textContent = `${newDueDate.year}.${pad2(newDueDate.month + 1)}.${pad2(newDueDate.day)}`;
+    renderCalendar();
+    calendarPanel.classList.remove("show");
+  });
+  document.getElementById("calConfirmBtn").addEventListener("click", () => {
+    calendarPanel.classList.remove("show");
+  });
+
+  // ── 하단 임시저장 / 등록 / 저장 ──────────────────────────────────────────
+  const footerEl = document.getElementById("footerActions");
+
+  function renderFooter() {
+    if (!isAuthor()) {
+      footerEl.innerHTML = `<button type="button" class="footer-btn disabled" disabled>저장 (작성자만 가능)</button>`;
+      return;
+    }
+    if (!registered) {
+      footerEl.innerHTML = `
+        <div class="footer-row">
+          <button type="button" class="footer-btn secondary" id="tempSaveBtn">임시저장</button>
+          <button type="button" class="footer-btn primary" id="registerBtn">등록</button>
+        </div>`;
+    } else {
+      footerEl.innerHTML = `<button type="button" class="footer-btn primary" id="tempSaveBtn">저장</button>`;
+    }
+    bindFooterEvents();
+  }
+
+  function bindFooterEvents() {
+    const tempSaveBtn = document.getElementById("tempSaveBtn");
+    if (tempSaveBtn) {
+      tempSaveBtn.addEventListener("click", () => {
+        lastSavedAt = nowLabel();
+        updateNotesMeta();
+        showToast(registered ? "✓ 저장되었습니다" : "임시저장되었습니다");
+      });
+    }
+    const registerBtn = document.getElementById("registerBtn");
+    if (registerBtn) {
+      registerBtn.addEventListener("click", () => {
+        openConfirm(
+          "회의록을 등록할까요?",
+          "등록하면 이 회의 참석자 전원에게 회의록 등록 안내 알림이 발송돼요. 등록 후에도 내용은 계속 수정할 수 있어요.",
+          () => {
+            registered = true;
+            lastSavedAt = nowLabel();
+            updateNotesMeta();
+            renderFooter();
+            showToast("✓ 회의록이 등록되었습니다 · 참석자 전원에게 알림 발송");
+          }
+        );
+      });
+    }
+  }
+
+  // ── 확인 팝업 ──────────────────────────────────────────
+  const confirmOverlay = document.getElementById("confirmOverlay");
+  const confirmTitleEl = document.getElementById("confirmTitle");
+  const confirmBodyEl = document.getElementById("confirmBody");
+  let pendingConfirmAction = null;
+
+  function openConfirm(title, body, onOk) {
+    confirmTitleEl.textContent = title;
+    confirmBodyEl.textContent = body;
+    pendingConfirmAction = onOk;
+    confirmOverlay.classList.add("show");
+  }
+  function closeConfirm() {
+    confirmOverlay.classList.remove("show");
+    pendingConfirmAction = null;
+  }
+  document.getElementById("confirmCancelBtn").addEventListener("click", closeConfirm);
+  document.getElementById("confirmOkBtn").addEventListener("click", () => {
+    const action = pendingConfirmAction;
+    closeConfirm();
+    if (action) action();
+  });
+
+  // ── 토스트 ──────────────────────────────────────────
+  const toastEl = document.getElementById("minutesToast");
+  let toastTimer = null;
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1600);
+  }
+
+  // ── 스크롤 경계 그림자 ──────────────────────────────────────────
+  const bodyScrollEl = document.getElementById("bodyScroll");
+  function updateFooterBoundary() {
+    const atBottom = bodyScrollEl.scrollTop + bodyScrollEl.clientHeight >= bodyScrollEl.scrollHeight - 2;
+    footerEl.classList.toggle("show-boundary", !atBottom);
+  }
+  bodyScrollEl.addEventListener("scroll", updateFooterBoundary);
+
+  // ── [데모 전용] 로그인 사용자 전환 ──────────────────────────────────────────
+  document.getElementById("userDemoRow").addEventListener("click", (e) => {
+    const chip = e.target.closest(".demo-chip");
+    if (!chip) return;
+    currentUser = chip.dataset.user;
+    document.querySelectorAll("#userDemoRow .demo-chip").forEach((c) => c.classList.toggle("active", c.dataset.user === currentUser));
+    renderAuthorRow();
+    renderNotesPermission();
+    renderFooter();
+  });
+
+  // ── 초기 렌더 ──────────────────────────────────────────
+  renderAuthorRow();
+  renderNotesPermission();
+  renderFooter();
+  renderActionItems();
+  renderCalendar();
+  updateFooterBoundary();
+  document.querySelector('#userDemoRow .demo-chip[data-user="김민준"]').classList.add("active");
+
+  // ---- 하단 탭바 터치 이동 (전 화면 공통 패턴) ----
+  const TAB_ROUTES = {
+    "예약": "예약 화면(화면 17)",
+    "내 회의": "내 회의 화면(화면 1)",
+    "알림": "알림 화면(화면 11)",
+    "내 정보": "내 정보 화면(화면 16)",
+  };
+  document.querySelector(".tab-bar").addEventListener("click", (e) => {
+    const item = e.target.closest(".tab-bar-item");
+    if (!item || item.classList.contains("active")) return;
+    const label = item.textContent.trim();
+    if (TAB_ROUTES[label]) showToast(`→ ${TAB_ROUTES[label]}로 이동`);
+  });
+</script>
+
+</body>
+</html>

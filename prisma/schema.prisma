@@ -1,0 +1,214 @@
+// 회의 일정 조율 앱 — Prisma 스키마
+// db_model_mvp.md의 12개 엔티티를 반영. SQLite는 enum을 지원하지 않으므로
+// role/status/stage/attendance_mode 등 "고정 문자열 집합" 필드는 전부 String이며,
+// 실제 허용값 검증은 src/lib/enums.ts(zod)에서 수행한다.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  name                String
+  email               String    @unique
+  // passwordHash: db_model_mvp.md 원 스펙엔 없는 필드. 이번 빌드는 자체 로그인(사내 SSO 계정 전제,
+  // 임시 비밀번호 "1111" 사전 발급)을 쓰므로 추가함 — project_handoff.md §0 참고.
+  passwordHash        String
+  department          String?
+  rank                String?
+  position             String?
+  phone               String?
+  extension            String?
+  messengerId          String?
+  profileImageUrl      String?
+  directorySyncSource  String?
+  directorySyncedAt    DateTime?
+  onboardingSeenAt     DateTime?
+  createdAt            DateTime  @default(now())
+
+  organizedMeetings    Meeting[]            @relation("organizer")
+  participants         Participant[]        @relation("participantUser")
+  delegateFor          Participant[]        @relation("delegateUser")
+  agendas              Agenda[]
+  slotResponses        SlotResponse[]
+  notifications        Notification[]
+  mitigationRequests   MitigationRequest[]
+  meetingNotesAuthored MeetingNote[]
+  actionItemsAssigned  ActionItem[]         @relation("assignee")
+  actionItemsCreated   ActionItem[]         @relation("creator")
+}
+
+model Meeting {
+  id                        String    @id @default(cuid())
+  title                     String
+  mode                      String?
+  status                    String
+  stage                     String
+  organizerId               String
+  organizer                 User      @relation("organizer", fields: [organizerId], references: [id])
+  confirmedSlotId           String?   @unique
+  confirmedSlot             TimeSlot? @relation("confirmedSlot", fields: [confirmedSlotId], references: [id])
+  videoLink                 String?
+  durationMinutes           Int
+  createdAt                 DateTime  @default(now())
+  candidateStartDate        DateTime
+  candidateEndDate          DateTime
+  requiredResponseDeadline  DateTime
+  optionalResponseDeadline  DateTime
+  agendaDeadline            DateTime
+  rescheduleCount           Int       @default(0)
+
+  participants       Participant[]
+  timeSlots          TimeSlot[]           @relation("meetingSlots")
+  agendas            Agenda[]
+  notifications      Notification[]
+  mitigationRequests MitigationRequest[]
+  roomBooking        RoomBooking?
+  meetingNote        MeetingNote?
+  actionItems        ActionItem[]
+}
+
+model Participant {
+  id                 String    @id @default(cuid())
+  meetingId          String
+  meeting            Meeting   @relation(fields: [meetingId], references: [id])
+  userId             String
+  user               User      @relation("participantUser", fields: [userId], references: [id])
+  delegateUserId     String?
+  delegateUser       User?     @relation("delegateUser", fields: [delegateUserId], references: [id])
+  role               String
+  confirmationStatus String    @default("미확인")
+  attendanceMode     String?
+  respondedAt        DateTime?
+  declineReason      String?
+  // db_model_mvp.md 원 스펙엔 없는 필드. 화면1의 "재확인 대기"(amber) 배지가 "확정됐지만
+  // 참석 재확인(화면8)을 아직 완료하지 않은 상태"를 가리키는데, confirmation_status만으로는
+  // 이 상태를 구분할 수 없어 화면8의 세 액션(온라인전환/대리참석/불참통보) 완료 시점을 기록하는
+  // 용도로 추가함.
+  reconfirmedAt      DateTime?
+
+  @@unique([meetingId, userId])
+}
+
+model TimeSlot {
+  id            String   @id @default(cuid())
+  meetingId     String
+  meeting       Meeting  @relation("meetingSlots", fields: [meetingId], references: [id])
+  startTime     DateTime
+  endTime       DateTime
+  isShortlisted Boolean  @default(false)
+
+  slotResponses       SlotResponse[]
+  mitigationRequests  MitigationRequest[]
+  confirmedForMeeting Meeting?             @relation("confirmedSlot")
+
+  @@index([meetingId, startTime])
+}
+
+model SlotResponse {
+  id         String   @id @default(cuid())
+  timeSlotId String
+  timeSlot   TimeSlot @relation(fields: [timeSlotId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  status     String
+
+  @@unique([timeSlotId, userId])
+}
+
+model Agenda {
+  id            String   @id @default(cuid())
+  meetingId     String
+  meeting       Meeting  @relation(fields: [meetingId], references: [id])
+  authorId      String
+  author        User     @relation(fields: [authorId], references: [id])
+  title         String
+  description   String?
+  isRequired    Boolean  @default(false)
+  attachmentUrl String?
+  createdAt     DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  meetingId String
+  meeting   Meeting  @relation(fields: [meetingId], references: [id])
+  type      String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+model Room {
+  id        String   @id @default(cuid())
+  name      String
+  location  String?
+  capacity  Int?
+  equipment String?
+  notes     String?
+
+  bookings RoomBooking[]
+}
+
+model RoomBooking {
+  id        String   @id @default(cuid())
+  meetingId String   @unique
+  meeting   Meeting  @relation(fields: [meetingId], references: [id])
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id])
+  startTime DateTime
+  endTime   DateTime
+  status    String
+
+  @@index([roomId, startTime])
+}
+
+model MitigationRequest {
+  id           String    @id @default(cuid())
+  meetingId    String
+  meeting      Meeting   @relation(fields: [meetingId], references: [id])
+  timeSlotId   String
+  timeSlot     TimeSlot  @relation(fields: [timeSlotId], references: [id])
+  targetUserId String
+  targetUser   User      @relation(fields: [targetUserId], references: [id])
+  status       String
+  requestedAt  DateTime  @default(now())
+  respondedAt  DateTime?
+
+  @@index([meetingId, timeSlotId, status])
+}
+
+model MeetingNote {
+  meetingId     String    @id
+  meeting       Meeting   @relation(fields: [meetingId], references: [id])
+  content       String?
+  authorUserId  String
+  authorUser    User      @relation(fields: [authorUserId], references: [id])
+  isAiGenerated Boolean   @default(false)
+  status        String    @default("임시저장")
+  registeredAt  DateTime?
+  updatedAt     DateTime  @updatedAt
+}
+
+model ActionItem {
+  id             String    @id @default(cuid())
+  meetingId      String
+  meeting        Meeting   @relation(fields: [meetingId], references: [id])
+  content        String
+  assigneeUserId String?
+  assigneeUser   User?     @relation("assignee", fields: [assigneeUserId], references: [id])
+  dueDate        DateTime?
+  isDone         Boolean   @default(false)
+  createdBy      String
+  creator        User      @relation("creator", fields: [createdBy], references: [id])
+  createdAt      DateTime  @default(now())
+}

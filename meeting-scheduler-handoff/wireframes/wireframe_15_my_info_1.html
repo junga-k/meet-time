@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>와이어프레임 — 내 정보 화면</title>
+<style>
+  :root {
+    --ink: #1a1a1a; --muted: #6b6b6b; --border: #1a1a1a; --border-light: #c9c9c9;
+    --page-bg: #e9e9e7; --card-bg: #ffffff; --accent-red: #c0392b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 16px; background: var(--page-bg);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    color: var(--ink); display: flex; flex-direction: column; align-items: center;
+  }
+  .frame-label { font-size: 12px; color: var(--muted); letter-spacing: 0.05em; margin-bottom: 10px; text-transform: uppercase; }
+  .app-card {
+    width: 100%; max-width: 390px; background: var(--card-bg);
+    border: 1.5px solid var(--border); height: 844px;
+    display: flex; flex-direction: column; position: relative; overflow: hidden;
+  }
+  .status-bar {
+    height: 24px; flex-shrink: 0; padding: 0 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border-light); font-size: 11px; font-weight: 700; color: var(--ink);
+  }
+  .status-icons { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+  .screen-content { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
+  .tab-bar {
+    height: 56px; flex-shrink: 0; border-top: 1px solid var(--border-light);
+    background: #fafaf9; display: flex; align-items: flex-start; justify-content: space-around; padding-top: 8px;
+  }
+  .tab-bar-item { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 9.5px; color: var(--muted); }
+  .tab-bar-item.active { color: var(--ink); font-weight: 700; }
+  .notif-icon-wrap { position: relative; display: inline-flex; }
+  .notif-dot { position: absolute; top: -1px; right: -1px; width: 8px; height: 8px; border-radius: 50%; background: #d33; border: 1px solid var(--card-bg); }
+
+  .header { padding: 16px 16px 0; flex-shrink: 0; }
+  .header-top-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+  .page-title { font-size: 20px; font-weight: 700; }
+  .edit-link { font-size: 12.5px; font-weight: 700; color: var(--ink); cursor: pointer; text-decoration: underline; }
+
+  .body-scroll { flex: 1; overflow-y: auto; padding: 4px 16px 20px; }
+
+  .profile-card { display: flex; align-items: center; gap: 12px; padding: 16px 4px 20px; border-bottom: 1px solid var(--border-light); margin-bottom: 18px; }
+  .avatar { border-radius: 50%; border: 1px solid var(--border-light); background: #f0f0ee; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--ink); flex-shrink: 0; overflow: hidden; }
+  .avatar-xl { width: 58px; height: 58px; font-size: 21px; }
+  .profile-name { font-size: 16px; font-weight: 700; }
+  .profile-role-line { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  .info-section { margin-bottom: 20px; }
+  .section-label { font-size: 11px; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 8px; }
+  .info-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border-light); }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { font-size: 12px; color: var(--muted); flex-shrink: 0; width: 88px; }
+  .info-value { font-size: 13px; font-weight: 600; text-align: right; flex: 1; }
+  .info-value.empty { color: var(--muted); font-weight: 400; font-style: normal; }
+
+  .field { width: 100%; border: 1px solid var(--border-light); padding: 9px 10px; font-size: 13px; font-family: inherit; background: #fff; color: var(--ink); margin-bottom: 8px; }
+  .field:disabled { background: #f0f0ee; color: var(--muted); }
+  .field-group { margin-bottom: 12px; }
+  .field-group .field { margin-bottom: 0; }
+  .field-label { display: block; font-size: 11.5px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+  .optional-mark { color: var(--muted); font-weight: 500; margin-left: 3px; }
+
+  .readonly-note { font-size: 10.5px; color: var(--muted); line-height: 1.6; padding: 2px 4px 14px; }
+
+  .footer { flex-shrink: 0; padding: 12px 16px 14px; background: #fafaf9; display: none; transition: box-shadow 0.15s ease; }
+  .footer.show { display: block; }
+  .footer.show-boundary { box-shadow: 0 -3px 8px rgba(0,0,0,0.10); }
+  .save-btn { width: 100%; background: var(--ink); color: #fff; border: none; padding: 12px; font-size: 13.5px; font-weight: 700; cursor: pointer; font-family: inherit; }
+
+  .toast {
+    position: absolute; bottom: 101px; left: 50%; transform: translateX(-50%) translateY(8px);
+    background: var(--ink); color: #fff; font-size: 11.5px; font-weight: 600;
+    padding: 7px 16px; border-radius: 20px; opacity: 0; pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease; white-space: nowrap; z-index: 40;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .dev-notes {
+    width: 100%; max-width: 390px; margin-top: 24px;
+    border: 1px dashed var(--border); padding: 16px 18px;
+    font-size: 12.5px; line-height: 1.7; color: var(--ink); background: #fff;
+  }
+  .dev-notes h3 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .dev-notes code { background: #f0f0ee; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  .dev-notes ul { margin: 4px 0 12px; padding-left: 18px; }
+  .dev-notes ul:last-child { margin-bottom: 0; }
+  .dev-notes .warn { color: #8a4b00; }
+</style>
+</head>
+<body>
+
+<div class="frame-label">화면 16 · 내 정보 — MVP (신규)</div>
+
+<div class="app-card">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span class="status-icons">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19v-3M9 19v-6M14 19v-9M19 19V5"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5a15 15 0 0118 0"/><path d="M6.2 12a10.5 10.5 0 0111.6 0"/><path d="M9.5 15.5a5.8 5.8 0 015 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.2v3.6"/><rect x="4" y="9" width="10" height="6" fill="currentColor" stroke="none"/></svg>
+    </span>
+  </div>
+
+  <div class="screen-content">
+    <div class="header">
+      <div class="header-top-row">
+        <span class="page-title">내 정보</span>
+        <span class="edit-link" id="editLink">수정</span>
+      </div>
+    </div>
+
+    <div class="body-scroll" id="bodyScroll">
+      <div class="profile-card">
+        <div class="avatar avatar-xl">김</div>
+        <div>
+          <div class="profile-name">김정아</div>
+          <div class="profile-role-line">junga6228@company.com</div>
+        </div>
+      </div>
+
+      <div class="info-section" id="viewSection">
+        <div class="section-label">계정 정보</div>
+        <div class="info-row"><span class="info-label">이름</span><span class="info-value">김정아</span></div>
+        <div class="info-row"><span class="info-label">이메일</span><span class="info-value">junga6228@company.com</span></div>
+      </div>
+
+      <div class="info-section" id="deptSection">
+        <div class="section-label">소속</div>
+        <div class="info-row"><span class="info-label">부서</span><span class="info-value" id="v-dept">프로덕트디자인팀</span></div>
+        <div class="info-row"><span class="info-label">직위</span><span class="info-value" id="v-rank">대리</span></div>
+        <div class="info-row"><span class="info-label">직책</span><span class="info-value empty" id="v-position">-</span></div>
+      </div>
+
+      <div class="info-section" id="contactViewSection">
+        <div class="section-label">연락처</div>
+        <div class="info-row"><span class="info-label">휴대폰</span><span class="info-value" id="v-phone">010-1234-5678</span></div>
+        <div class="info-row"><span class="info-label">내선번호</span><span class="info-value empty" id="v-ext">-</span></div>
+        <div class="info-row"><span class="info-label">메신저 ID</span><span class="info-value" id="v-messenger">@jeongah</span></div>
+      </div>
+
+      <div class="info-section" id="editSection" style="display:none;">
+        <div class="section-label">연락처</div>
+        <div class="field-group">
+          <label class="field-label" for="e-phone">휴대폰번호</label>
+          <input type="tel" class="field" id="e-phone" value="010-1234-5678" placeholder="숫자만 입력해주세요" inputmode="numeric">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="e-ext">내선번호<span class="optional-mark">(선택)</span></label>
+          <input type="text" class="field" id="e-ext" value="" placeholder="숫자만 입력해주세요" inputmode="numeric">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="e-messenger">메신저 ID<span class="optional-mark">(선택)</span></label>
+          <input type="text" class="field" id="e-messenger" value="@jeongah" placeholder="메신저 ID (선택)">
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="routeToast"></div>
+
+    <div class="footer" id="editFooter">
+      <button type="button" class="save-btn" id="saveBtn">저장</button>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/></svg>예약</div>
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>내 회의</div>
+    <div class="tab-bar-item"><span class="notif-icon-wrap"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10.5a6 6 0 1112 0c0 4.2 1.5 5.5 1.5 5.5h-15S6 14.7 6 10.5z"/><path d="M9.7 18.5a2.3 2.3 0 004.6 0"/></svg><span class="notif-dot"></span></span>알림</div>
+    <div class="tab-bar-item active"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20c0-4.14 3.36-7.5 7.5-7.5s7.5 3.36 7.5 7.5"/></svg>내 정보</div>
+  </div>
+</div>
+
+<div class="dev-notes">
+  <h3>구현 노트 (Claude Code 참고용)</h3>
+  <ul>
+    <li>기존 스펙엔 없던 <strong>완전 신규 화면</strong> — 탭바 4번째 탭("내 정보")에 대응하는 화면이 없던 것을 보완. <code>db_model_mvp.md</code>의 <code>USER</code> 엔티티 필드를 그대로 표시/수정</li>
+    <li><code>name</code>, <code>email</code>은 로그인 시 SSO/Google 계정에서 받아온 값이라 <strong>이 화면에서 수정 불가</strong>(읽기 전용). 별도 안내 문구 없이 "계정 정보" 섹션 자체가 처음부터 끝까지 읽기 전용 뷰로만 표시됨(수정 모드에서도 입력 필드로 전환되지 않음)</li>
+    <li><strong>"소속"(부서·직위·직책)도 항상 읽기 전용</strong> — 최초 프로필 설정(화면14)과 동일하게 회사 디렉토리(HRIS/SSO 그룹 속성)에서 자동 동기화되는 정보로 최종 확정(트래커 §2-9, §3-7 해결). 수정 모드로 전환해도 "소속" 섹션은 입력 필드로 바뀌지 않고 계속 읽기 전용 뷰 그대로 노출됨 — 값이 틀리면 사내 HR/IT 시스템에서 갱신해야 함. 수정 가능한 항목은 "연락처"(휴대폰·내선번호·메신저ID)뿐</li>
+    <li>"직급" 표기를 전부 "직위"로 변경(표시 텍스트만 변경, 내부 필드/변수명은 기존 <code>rank</code> 그대로 유지)</li>
+    <li>수정 모드의 "연락처" 입력 필드에 placeholder 대신 별도 라벨(<code>field-label</code>)을 붙임 — 화면13(최초 프로필 설정)과 동일한 패턴 및 텍스트 색상 위계(섹션 제목은 진한 색, 필드 라벨은 옅은 색) 적용</li>
+    <li>휴대폰번호·내선번호 입력 시 숫자만 입력해도 자동으로 하이픈 포맷(예: 010-1234-5678) 적용 — 화면13과 동일한 <code>formatPhoneNumber()</code> 로직 재사용</li>
+    <li>상단 "수정" 링크 클릭 시 읽기 전용 뷰 → 입력 필드로 전환, 저장 버튼이 있는 하단 푸터가 함께 나타남. 저장 후에는 다시 읽기 전용 뷰로 복귀</li>
+    <li>값이 없는 필드(직책·내선번호 등 nullable)는 읽기 전용 뷰에서 "-"로 표시</li>
+    <li>이 화면은 별도 뒤로가기 없음 — 탭바 최상위 화면(화면 1·5·11과 동급)</li>
+  </ul>
+</div>
+
+<script>
+  const editLink = document.getElementById("editLink");
+  const editSection = document.getElementById("editSection");
+  const contactViewSection = document.getElementById("contactViewSection");
+  const editFooter = document.getElementById("editFooter");
+  const bodyScrollEl = document.getElementById("bodyScroll");
+
+  let editing = false;
+
+  // 숫자만 입력받아 전화번호 형식(예: 010-1234-5678)으로 자동 변환 — wireframe_13(최초 프로필 설정)과 동일 로직
+  function formatPhoneNumber(raw) {
+    const digits = raw.replace(/\D/g, "").slice(0, 11);
+    if (digits.length <= 4) return digits;
+    if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    if (digits.length <= 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+  }
+  function attachAutoFormat(input) {
+    input.addEventListener("input", () => {
+      const caretWasAtEnd = input.selectionEnd === input.value.length;
+      input.value = formatPhoneNumber(input.value);
+      if (caretWasAtEnd) input.setSelectionRange(input.value.length, input.value.length);
+    });
+  }
+  attachAutoFormat(document.getElementById("e-phone"));
+  attachAutoFormat(document.getElementById("e-ext"));
+
+  // 아래에 더 볼 내용이 남아있을 때만 저장 버튼 영역 위에 그림자로 경계 표시
+  function updateFooterBoundary() {
+    const atBottom = bodyScrollEl.scrollTop + bodyScrollEl.clientHeight >= bodyScrollEl.scrollHeight - 2;
+    editFooter.classList.toggle("show-boundary", !atBottom);
+  }
+  bodyScrollEl.addEventListener("scroll", updateFooterBoundary);
+
+  editLink.addEventListener("click", () => {
+    editing = !editing;
+    editSection.style.display = editing ? "block" : "none";
+    contactViewSection.style.display = editing ? "none" : "block"; // 연락처만 전환. 계정 정보·소속은 항상 읽기 전용이라 그대로 노출
+    editFooter.classList.toggle("show", editing);
+    editLink.textContent = editing ? "취소" : "수정";
+    updateFooterBoundary();
+  });
+
+  // 값이 채워지면 일반 스타일로, 비어있으면 "-" + 연한 스타일(.empty)로 표시
+  function setInfoValue(id, rawValue) {
+    const el = document.getElementById(id);
+    const filled = rawValue.trim().length > 0;
+    el.textContent = filled ? rawValue : "-";
+    el.classList.toggle("empty", !filled);
+  }
+
+  document.getElementById("saveBtn").addEventListener("click", () => {
+    setInfoValue("v-phone", document.getElementById("e-phone").value);
+    setInfoValue("v-ext", document.getElementById("e-ext").value);
+    setInfoValue("v-messenger", document.getElementById("e-messenger").value);
+
+    editing = false;
+    editSection.style.display = "none";
+    contactViewSection.style.display = "block";
+    editFooter.classList.remove("show");
+    editLink.textContent = "수정";
+    showToast("저장됐어요");
+  });
+
+  const toast = document.getElementById("routeToast");
+  let toastTimer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 1400);
+  }
+  // ---- 하단 탭바 터치 이동 (전 화면 공통 패턴) ----
+  const TAB_ROUTES = {
+    "예약": "예약 화면(화면 17)",
+    "내 회의": "내 회의 화면(화면 1)",
+    "알림": "알림 화면(화면 11)",
+    "내 정보": "내 정보 화면(화면 16)",
+  };
+  document.querySelector(".tab-bar").addEventListener("click", (e) => {
+    const item = e.target.closest(".tab-bar-item");
+    if (!item || item.classList.contains("active")) return;
+    const label = item.textContent.trim();
+    if (TAB_ROUTES[label]) showToast(`→ ${TAB_ROUTES[label]}로 이동`);
+  });
+</script>
+
+</body>
+</html>

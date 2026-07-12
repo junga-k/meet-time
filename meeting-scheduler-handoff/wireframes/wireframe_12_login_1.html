@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>와이어프레임 — 로그인 화면</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #1a1a1a;
+    --border-light: #c9c9c9;
+    --page-bg: #e9e9e7;
+    --card-bg: #ffffff;
+    --accent-red: #c0392b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 16px;
+    background: var(--page-bg);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .frame-label { font-size: 12px; color: var(--muted); letter-spacing: 0.05em; margin-bottom: 10px; text-transform: uppercase; }
+  .app-card {
+    width: 100%; max-width: 390px; background: var(--card-bg);
+    border: 1.5px solid var(--border); height: 844px;
+    display: flex; flex-direction: column; position: relative; overflow: hidden;
+  }
+  .status-bar {
+    height: 24px; flex-shrink: 0; padding: 0 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border-light); font-size: 11px; font-weight: 700; color: var(--ink);
+  }
+  .status-icons { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+  .screen-content { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
+
+  .toast {
+    position: absolute; bottom: 40px; left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--ink); color: #fff; font-size: 11.5px; font-weight: 600;
+    padding: 7px 16px; border-radius: 20px; opacity: 0; pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease; white-space: nowrap;
+    max-width: 320px; text-align: center; z-index: 40;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .login-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 28px;
+    text-align: center;
+  }
+  .app-logo {
+    width: 56px; height: 56px;
+    border: 1.5px solid var(--ink);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 18px;
+  }
+  .app-name { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .app-tagline { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 44px; }
+
+  .login-buttons { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+  .login-btn {
+    width: 100%; padding: 13px; font-size: 13.5px; font-weight: 700; font-family: inherit;
+    border: 1.5px solid var(--ink); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: #fff; color: var(--ink);
+  }
+  .login-btn.primary { background: var(--ink); color: #fff; }
+  .login-btn.google-btn { border: 1px solid #e6e6e4; }
+  .login-btn:active { opacity: 0.85; }
+
+  .company-logo-placeholder {
+    width: 18px; height: 18px; border-radius: 5px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+
+  .login-footer-note {
+    font-size: 10.5px; color: var(--muted); line-height: 1.6; margin-top: 28px; padding: 0 8px;
+  }
+
+  /* 로딩(스플래시 대체) 오버레이 */
+  .loading-overlay {
+    position: absolute; inset: 0; background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px;
+    transition: opacity 0.25s ease;
+    z-index: 50;
+  }
+  .loading-overlay.hide { opacity: 0; pointer-events: none; }
+  .loading-dots { display: flex; gap: 6px; }
+  .loading-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink); opacity: 0.3; animation: blink 1s infinite; }
+  .loading-dot:nth-child(2) { animation-delay: 0.15s; }
+  .loading-dot:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes blink { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.9; } }
+
+  /* 구현 노트 */
+  .dev-notes {
+    width: 100%; max-width: 390px; margin-top: 24px;
+    border: 1px dashed var(--border); padding: 16px 18px;
+    font-size: 12.5px; line-height: 1.7; color: var(--ink); background: #fff;
+  }
+  .dev-notes h3 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .dev-notes code { background: #f0f0ee; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  .dev-notes ul { margin: 4px 0 12px; padding-left: 18px; }
+  .dev-notes ul:last-child { margin-bottom: 0; }
+  .dev-notes .warn { color: #8a4b00; }
+</style>
+</head>
+<body>
+
+<div class="frame-label">화면 13 · 로그인 — MVP (신규)</div>
+
+<div class="app-card">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span class="status-icons">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19v-3M9 19v-6M14 19v-9M19 19V5"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5a15 15 0 0118 0"/><path d="M6.2 12a10.5 10.5 0 0111.6 0"/><path d="M9.5 15.5a5.8 5.8 0 015 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.2v3.6"/><rect x="4" y="9" width="10" height="6" fill="currentColor" stroke="none"/></svg>
+    </span>
+  </div>
+
+  <div class="screen-content">
+    <div class="login-body">
+      <div class="app-logo">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>
+      </div>
+      <div class="app-name">회의 일정 조율</div>
+      <div class="app-tagline">여러 사람의 조건을 한 번에 이해하고<br>모두에게 괜찮은 시간을 자동으로 찾아드려요</div>
+
+      <div class="login-buttons">
+        <button type="button" class="login-btn primary" id="companyLoginBtn">
+          <span class="company-logo-placeholder" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 18 18"><rect width="18" height="18" rx="5" fill="#6C63FF"/><path d="M9 4.3l3.8 2.2v4.6L9 13.3l-3.8-2.2V6.5z" fill="#fff"/></svg>
+          </span>
+          사내 계정으로 로그인
+        </button>
+        <button type="button" class="login-btn google-btn" id="googleLoginBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.25 1.06-3.71 1.06-2.86 0-5.28-1.93-6.14-4.53H2.18v2.85A11 11 0 0012 23z"/><path fill="#FBBC05" d="M5.86 14.1a6.6 6.6 0 010-4.2V7.05H2.18a11 11 0 000 9.9l3.68-2.85z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1a11 11 0 00-9.82 6.05l3.68 2.85C6.72 7.31 9.14 5.38 12 5.38z"/></svg>
+          Google로 로그인
+        </button>
+      </div>
+
+      <div class="login-footer-note">
+        가입 절차 없이 사내계정으로 바로 이용하실 수 있어요.<br>
+        로그인하면 소속 회사의 계정 정책에 따라<br>
+        부서·직위·직책 정보가 함께 제공됩니다.
+      </div>
+    </div>
+
+    <div class="toast" id="routeToast"></div>
+  </div>
+
+  <div class="loading-overlay" id="loadingOverlay">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>
+    <div class="loading-dots"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>
+  </div>
+</div>
+
+<div class="dev-notes">
+  <h3>구현 노트 (Claude Code 참고용)</h3>
+  <ul>
+    <li><strong>전통적인 아이디/비밀번호 로그인 폼이 아님</strong> — 두 버튼 모두 OAuth2/OIDC 리다이렉트 방식. "사내 계정으로 로그인"은 회사의 사내 SSO(예: 사내 그룹웨어 IdP, Microsoft Entra ID/Azure AD, Okta 등)로, "Google로 로그인"은 Google OAuth(회사 도메인으로 제한 가능)로 각각 리다이렉트 후 콜백으로 돌아옴</li>
+    <li class="warn"><strong>실제 배포 시 두 버튼을 동시에 노출하지 않는 것을 전제</strong>로 설계함 — 회사마다 실제로 쓰는 인증 수단이 하나뿐이라, 배포 조직의 설정값에 따라 둘 중 하나만 노출하는 구성으로 구현 권장 (와이어프레임에서는 시연을 위해 둘 다 노출)</li>
+    <li>자체 회원가입 절차 없음 — 계정 자체는 SSO/Google 쪽에서 관리. 최초 로그인 시에만 <code>USER</code> 레코드를 새로 생성하고 "최초 프로필 설정" 화면(신규)으로 이동시켜 SSO가 주지 않는 필드(부서·직위·직책·내선번호·메신저ID)를 보완 입력받음. 이미 가입된 사용자는 바로 "내 회의" 목록(화면 1)으로 이동</li>
+    <li>이 화면 자체가 스플래시를 겸함 — 앱 최초 진입 시 <code>loading-overlay</code>(로고+로딩 인디케이터)가 잠깐 표시된 뒤 로그인 여부에 따라 자동 분기(로그인 상태면 이 화면을 건너뛰고 바로 내 회의 목록으로, 아니면 이 화면 노출). 별도의 전용 스플래시 화면은 만들지 않기로 결정함(<code>open_decisions_tracker.md</code> §0 참고)</li>
+    <li>이 와이어프레임은 단일 화면 목업이라 실제 리다이렉트 대신 <strong>토스트로 다음 이동 화면을 표시</strong>하는 것으로 대체 시연함 (데모 편의상 "사내 계정으로 로그인" 클릭 시 최초 사용자 흐름을, "Google로 로그인" 클릭 시 기존 사용자 흐름을 시연하도록 구분해둠 — 실제로는 두 버튼 다 동일한 최초/기존 분기 로직을 탄다)</li>
+  </ul>
+</div>
+
+<script>
+  const overlay = document.getElementById("loadingOverlay");
+  setTimeout(() => overlay.classList.add("hide"), 900);
+
+  const toast = document.getElementById("routeToast");
+  let toastTimer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 1800);
+  }
+
+  document.getElementById("companyLoginBtn").addEventListener("click", () => {
+    showToast("사내 계정 인증 중... → (최초 로그인) 최초 프로필 설정 화면으로 이동");
+  });
+  document.getElementById("googleLoginBtn").addEventListener("click", () => {
+    showToast("Google 인증 중... → (기존 사용자) 내 회의 목록(화면 1)으로 이동");
+  });
+</script>
+
+</body>
+</html>

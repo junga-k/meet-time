@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>와이어프레임 — 참석 재확인 화면</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #1a1a1a;
+    --border-light: #c9c9c9;
+    --page-bg: #e9e9e7;
+    --card-bg: #ffffff;
+    --accent-red: #c0392b;
+    --accent-red-muted: #ab5c50;
+    --accent-green: #1e7a3d;
+    --accent-amber: #9c6f00;
+    --accent-amber-bg: #fffaeb;
+    --accent-amber-border: #f2cb5c;
+    --accent-blue: #3b4c9c;
+    --accent-blue-bg: #eef1fb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 16px;
+    background: var(--page-bg);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .frame-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+  .app-card {
+    width: 100%;
+    max-width: 390px;
+    background: var(--card-bg);
+    border: 1.5px solid var(--border);
+    height: 844px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .status-bar {
+    height: 24px;
+    flex-shrink: 0;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .status-icons { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+  .screen-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    position: relative;
+  }
+  .tab-bar {
+    height: 56px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-light);
+    background: #fafaf9;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-around;
+    padding-top: 8px;
+  }
+  .tab-bar-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    font-size: 9.5px;
+    color: var(--muted);
+  }
+  .tab-bar-item.active { color: var(--ink); font-weight: 700; }
+  .notif-icon-wrap { position: relative; display: inline-flex; }
+  .notif-dot {
+    position: absolute;
+    top: -1px; right: -1px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #d33;
+    border: 1px solid var(--card-bg);
+  }
+
+  .toast {
+    position: absolute;
+    bottom: 101px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--ink);
+    color: #fff;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    white-space: nowrap;
+    max-width: 320px;
+    text-align: center;
+    z-index: 45;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 헤더 */
+  .header {
+    padding: 14px 16px 0;
+    border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+  }
+  .back-arrow {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink);
+  }
+  .user-name { font-size: 13px; font-weight: 700; line-height: 1.2; }
+  .user-id-block { display: flex; align-items: center; gap: 7px; }
+  .avatar-md { width: 24px; height: 24px; font-size: 10.5px; }
+  .badge-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+  .badge {
+    font-size: 9.5px;
+    padding: 2px 7px;
+    border: 1px solid var(--ink);
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .meeting-title { font-size: 18px; font-weight: 700; margin: 0 0 10px; line-height: 1.3; }
+  .avatar {
+    border-radius: 50%;
+    border: 1px solid var(--border-light);
+    background: #f0f0ee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--ink);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .avatar-sm { width: 22px; height: 22px; font-size: 10px; }
+
+  /* 데모 컨트롤 (실제 앱 UI 아님) */
+  .demo-controls {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    background: #fff8e6;
+    border-bottom: 1px solid #e0c97a;
+    font-size: 10px;
+    color: #7a5c00;
+  }
+  .demo-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+  .demo-chip {
+    padding: 3px 8px;
+    border: 1px solid #c9a63e;
+    background: #fff;
+    color: #7a5c00;
+    font-size: 9.5px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .demo-chip.active { background: #7a5c00; color: #fff; }
+
+  /* 본문 스크롤 영역 */
+  .reconfirm-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 16px 16px;
+    min-height: 60px;
+  }
+  .section { margin-bottom: 16px; }
+  .section-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .change-notice {
+    border: 1px solid var(--accent-blue);
+    background: var(--accent-blue-bg);
+    color: var(--accent-blue);
+    padding: 10px 11px;
+    font-size: 11.5px;
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+  .change-notice-title { font-weight: 700; margin-bottom: 3px; }
+  .change-notice del { opacity: 0.7; }
+
+  .info-box {
+    border: 1px solid var(--border-light);
+    padding: 11px 12px;
+    font-size: 12px;
+    line-height: 1.7;
+  }
+  .info-box-row { display: flex; align-items: flex-start; gap: 8px; }
+  .info-box-row + .info-box-row { margin-top: 4px; }
+  .info-box-row svg { flex-shrink: 0; margin-top: 2px; color: var(--muted); }
+  .info-box-main { font-weight: 700; }
+  .info-box-sub { color: var(--muted); font-size: 11px; }
+  .video-link-line { word-break: break-all; }
+
+  .mode-box {
+    border: 1px solid var(--border-light);
+    padding: 10px 11px;
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .mode-box .mode-value { color: var(--ink); font-weight: 700; }
+
+  .result-box {
+    border: 1.5px solid var(--ink);
+    padding: 16px 14px;
+    text-align: center;
+    margin-top: 4px;
+  }
+  .result-box .result-icon { margin-bottom: 8px; }
+  .result-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .result-desc { font-size: 11.5px; color: var(--muted); line-height: 1.6; }
+  .result-box.warn { border-color: var(--accent-amber-border); background: var(--accent-amber-bg); }
+  .result-box.warn .result-title { color: var(--accent-amber); }
+
+  /* 하단 액션 영역 */
+  .footer {
+    flex-shrink: 0;
+    padding: 10px 16px 12px;
+    background: #fafaf9;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    transition: box-shadow 0.15s ease;
+  }
+  .footer.show-boundary {
+    box-shadow: 0 -3px 8px rgba(0,0,0,0.10);
+  }
+  .footer-btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    border: 1px solid var(--ink);
+  }
+  .footer-btn.primary { background: var(--ink); color: #fff; }
+  .footer-btn.secondary { background: #fff; color: var(--ink); }
+  .footer-link {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 11px;
+    text-decoration: underline;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 4px;
+  }
+  .footer-note { font-size: 10.5px; color: var(--muted); text-align: center; }
+
+  /* 확인 팝업 */
+  .confirm-modal-overlay {
+    position: absolute; inset: 0; background: rgba(20,20,20,0.4);
+    z-index: 30; display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  .confirm-modal-overlay.show { display: flex; }
+  .confirm-modal-box { background: #fff; border: 1.5px solid var(--ink); width: 100%; padding: 18px; }
+  .confirm-modal-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+  .confirm-modal-body { font-size: 12px; color: var(--ink); line-height: 1.7; margin-bottom: 16px; }
+  .confirm-modal-actions { display: flex; gap: 8px; }
+  .confirm-modal-actions button {
+    flex: 1; padding: 10px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    font-family: inherit; border: 1px solid var(--ink);
+  }
+  .confirm-btn-cancel { background: #fff; color: var(--ink); }
+  .confirm-btn-ok { background: var(--ink); color: #fff; }
+
+  /* 대리 참석자 지정 / 불참 통보 — 하단 슬라이드업 모달 */
+  .sheet-modal {
+    position: absolute; inset: 0; background: rgba(20,20,20,0.4);
+    z-index: 35; display: flex; align-items: flex-end; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.22s ease;
+  }
+  .sheet-modal.show { opacity: 1; pointer-events: auto; }
+  .sheet-modal-box {
+    width: 100%; max-height: 82%; background: #fff; border: 1.5px solid var(--ink); border-bottom: none;
+    display: flex; flex-direction: column;
+    transform: translateY(100%); transition: transform 0.28s cubic-bezier(0.2,0.8,0.3,1);
+  }
+  .sheet-modal.show .sheet-modal-box { transform: translateY(0); }
+  .sheet-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
+  .sheet-modal-title { font-size: 13.5px; font-weight: 700; }
+  .sheet-modal-close { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .sheet-modal-body { padding: 14px; overflow-y: auto; }
+
+  .delegate-option {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 8px; border: 1px solid var(--border-light); margin-bottom: 6px; font-size: 12px; cursor: pointer;
+  }
+  .delegate-option.selected { border-color: var(--ink); border-width: 1.5px; background: #fafaf9; }
+  .delegate-name { font-weight: 700; }
+  .delegate-meta { font-size: 10.5px; color: var(--muted); }
+  .sheet-modal-footer { padding: 10px 14px 14px; border-top: 1px solid var(--border-light); flex-shrink: 0; }
+  .sheet-submit-btn {
+    width: 100%; padding: 11px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    font-family: inherit; border: 1px solid var(--ink); background: var(--ink); color: #fff;
+  }
+  .sheet-submit-btn:disabled { background: #fff; color: var(--border-light); border-color: var(--border-light); cursor: default; }
+
+  .decline-warn {
+    border: 1px solid var(--accent-amber-border);
+    background: var(--accent-amber-bg);
+    color: var(--accent-amber);
+    padding: 10px 11px;
+    font-size: 11px;
+    line-height: 1.6;
+    margin-bottom: 10px;
+  }
+  .decline-label { font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+  .decline-textarea {
+    width: 100%; min-height: 90px; border: 1px solid var(--border-light); padding: 9px;
+    font-size: 12px; font-family: inherit; resize: vertical;
+  }
+  .decline-textarea:focus { outline: none; border-color: var(--ink); }
+
+  /* 구현 노트 */
+  .dev-notes {
+    width: 100%;
+    max-width: 390px;
+    margin-top: 24px;
+    border: 1px dashed var(--border);
+    padding: 16px 18px;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--ink);
+    background: #fff;
+  }
+  .dev-notes h3 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .dev-notes code { background: #f0f0ee; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  .dev-notes ul { margin: 4px 0 12px; padding-left: 18px; }
+  .dev-notes ul:last-child { margin-bottom: 0; }
+  .dev-notes .warn { color: #8a4b00; }
+</style>
+</head>
+<body>
+
+<div class="frame-label">화면 8 · 참석 재확인 (모든 참가자, 확정·재확정마다 노출) — MVP</div>
+
+<div class="app-card">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span class="status-icons">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19v-3M9 19v-6M14 19v-9M19 19V5"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5a15 15 0 0118 0"/><path d="M6.2 12a10.5 10.5 0 0111.6 0"/><path d="M9.5 15.5a5.8 5.8 0 015 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.2v3.6"/><rect x="4" y="9" width="10" height="6" fill="currentColor" stroke="none"/></svg>
+    </span>
+  </div>
+
+  <div class="screen-content">
+    <div class="header">
+      <div class="header-top">
+        <div class="back-arrow"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></div>
+        <div class="user-id-block">
+          <span class="avatar avatar-md" id="myAvatar"></span>
+          <span class="user-name" id="myName"></span>
+        </div>
+      </div>
+      <div class="badge-row"><div class="badge" id="myRoleBadge"></div></div>
+      <div class="meeting-title">3분기 로드맵 논의</div>
+    </div>
+
+    <div class="demo-controls">
+      [데모 전용] "나"의 역할과 재확인 상황을 전환해 확인합니다. 실제 화면에는 이 컨트롤이 없습니다.
+      <div class="demo-row" id="roleDemoRow">
+        <span class="demo-chip" data-role="required">필수 참석자</span>
+        <span class="demo-chip" data-role="optional">선택 참석자</span>
+      </div>
+      <div class="demo-row" id="rescheduleDemoRow">
+        <span class="demo-chip" data-reschedule="no">최초 확정</span>
+        <span class="demo-chip" data-reschedule="yes">재조율로 변경됨</span>
+      </div>
+      <div class="demo-row" id="attendableDemoRow">
+        <span class="demo-chip" data-attendable="yes">원래 참석형태로 참석 가능</span>
+        <span class="demo-chip" data-attendable="no">원래 참석형태로 참석 어려움</span>
+      </div>
+    </div>
+
+    <div class="reconfirm-body" id="reconfirmBody"><!-- JS로 렌더링 --></div>
+
+    <div class="toast" id="reconfirmToast"></div>
+
+    <div class="footer" id="footerActions"><!-- JS로 렌더링 --></div>
+
+    <div class="confirm-modal-overlay" id="confirmOverlay">
+      <div class="confirm-modal-box">
+        <div class="confirm-modal-title" id="confirmTitle"></div>
+        <div class="confirm-modal-body" id="confirmBody"></div>
+        <div class="confirm-modal-actions">
+          <button type="button" class="confirm-btn-cancel" id="confirmCancelBtn">취소</button>
+          <button type="button" class="confirm-btn-ok" id="confirmOkBtn">확인</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sheet-modal" id="delegateModal">
+      <div class="sheet-modal-box">
+        <div class="sheet-modal-header">
+          <span class="sheet-modal-title">대리 참석자 지정</span>
+          <span class="sheet-modal-close" id="delegateModalClose"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span>
+        </div>
+        <div class="sheet-modal-body">
+          <div class="section-title" style="margin-bottom:10px;">같은 팀에서 대신 참석할 분을 선택해주세요</div>
+          <div id="delegateOptionList"><!-- JS로 렌더링 --></div>
+        </div>
+        <div class="sheet-modal-footer">
+          <button type="button" class="sheet-submit-btn" id="delegateSubmitBtn" disabled>대리 참석자로 지정</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sheet-modal" id="declineModal">
+      <div class="sheet-modal-box">
+        <div class="sheet-modal-header">
+          <span class="sheet-modal-title">불참 통보</span>
+          <span class="sheet-modal-close" id="declineModalClose"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span>
+        </div>
+        <div class="sheet-modal-body">
+          <div id="declineWarnSlot"><!-- JS로 렌더링(필수 참석자만) --></div>
+          <div class="decline-label">불참 사유 (필수)</div>
+          <textarea class="decline-textarea" id="declineTextarea" placeholder="불참 사유를 입력해주세요"></textarea>
+        </div>
+        <div class="sheet-modal-footer">
+          <button type="button" class="sheet-submit-btn" id="declineSubmitBtn" disabled>불참 통보 제출</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/></svg>예약</div>
+    <div class="tab-bar-item active"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>내 회의</div>
+    <div class="tab-bar-item"><span class="notif-icon-wrap"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10.5a6 6 0 1112 0c0 4.2 1.5 5.5 1.5 5.5h-15S6 14.7 6 10.5z"/><path d="M9.7 18.5a2.3 2.3 0 004.6 0"/></svg><span class="notif-dot"></span></span>알림</div>
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20c0-4.14 3.36-7.5 7.5-7.5s7.5 3.36 7.5 7.5"/></svg>내 정보</div>
+  </div>
+</div>
+
+<div class="dev-notes">
+  <h3>구현 노트 (Claude Code 참고용)</h3>
+  <ul>
+    <li><strong>접근 대상</strong>: 모든 참가자, <code>MEETING.stage</code>='확정'으로 처음 전환될 때 + 재조율로 재확정될 때마다 각 참가자에게 노출(반복 가능). 상단 <strong>[데모 전용]</strong> 컨트롤 세 줄(역할 · 재확인 상황 · 원래 참석형태로 참석 가능 여부)은 이 화면의 조합을 한 파일에서 확인하기 위한 장치이며 실제 화면에는 없음</li>
+    <li><strong>"참석 확정 — 온라인 전환" 버튼의 조건부 문구(스펙 보완)</strong>: <code>screen_specs.md</code> 원문은 이 버튼을 "참석 확정 — 온라인 전환" 하나로만 서술해, 원래 대면으로도 문제 없이 참석 가능한 사람까지 강제로 온라인 전환해야 하는 것처럼 읽힐 여지가 있었음. 이 와이어프레임에서는 <strong>본인이 슬롯 응답 시 골랐던 참석형태로 이 확정 시간에 그대로 참석 가능하면 버튼 문구를 "참석 확정"으로만 표시</strong>하고(모드 변경 없음), <strong>원래 계획대로 참석이 어려워진 경우에만 "참석 확정 · 온라인 전환"으로 표시</strong>해 온라인 전환까지 함께 처리하도록 분기함. <strong>처음엔 이 판단 기준을 "재조율 여부"로 잘못 연결해뒀었음</strong> — 재조율이 있었다고 해서 원래 참석형태(예: 대면)로 참석이 불가능해지는 건 아니라서(둘은 별개 사실), 필수 참석자·대면·재조율만으로도 버튼이 "온라인 전환"으로 바뀌는 앞뒤가 안 맞는 상태가 됐었음. 지금은 "원래 참석형태로 참석 가능 여부"라는 <strong>별도의 독립 변수</strong>로 분리해서, 재조율 여부와 무관하게 이 값 하나로만 버튼 문구가 결정되도록 고침. 두 경우 모두 데이터상으로는 <code>PARTICIPANT.responded_at</code>(재확인 완료)을 갱신하고, 참석이 어려운 경우만 추가로 <code>attendance_mode</code>를 "온라인"으로 바꿈. 아이콘·우선순위(가장 강조되는 기본 버튼)는 스펙 그대로 유지</li>
+    <li><strong>대리 참석자 지정</strong>: 버튼 클릭 시 같은 팀 동료 목록을 하단 슬라이드업으로 보여주고 한 명을 선택하게 함(실제로는 이름 검색도 필요하�나 데모라 목록만 구성). 선택 후 확인 팝업 → <code>PARTICIPANT.delegate_user_id</code> 설정. db_model_mvp.md 규칙대로 이 필드는 <code>MEETING.status</code>='확정' 이후에만 설정 가능하다는 조건과 맞음(이 화면 자체가 확정 후에만 뜨므로 자연히 충족)</li>
+    <li><strong>불참 통보</strong>: 세 옵션 중 유일하게 <strong>별도 확인 팝업 없이 사유 입력만으로 바로 처리</strong> — screen_specs.md 공통 규칙 "슬롯 셀 토글처럼 가벼운 조작에는 확인 팝업 미적용(불참 통보는 이미 사유 입력 단계가 확인 절차 역할을 하므로 별도 팝업 생략)"을 그대로 반영. 필수 참석자에게는 입력창 위에 재조율 경고 문구를 추가로 보여주고, 제출 즉시 결과를 역할별로 분기해서 보여줌(필수: 재조율 시작 안내 / 선택: 불참 접수 안내, 회의록 안내는 이 시점엔 하지 않고 wireframe_09_meeting_detail.html의 최종 확정 시점 알림으로 이어짐 — screen_specs.md 화면 12 "선택 참석자 불참 처리 후속 안내" 절과 동일한 흐름)</li>
+    <li><strong>"이전 시간 대비 변경 안내"</strong>는 재조율 시나리오에서만 노출. 취소선으로 이전 시간을 보여주고 새 확정 시간을 강조 — 색상은 경고(빨강)도 주의(amber)도 아닌 <strong>정보 안내 성격이라 파랑 계열</strong>(wireframe_05의 "제안중" 배지와 동일 색상 재사용)을 선택함</li>
+    <li>액션 3개는 스펙 "설계 노트: 세 옵션을 단계별로 숨기지 않고 한 화면에 동시 노출"에 따라 항상 함께 노출하되, 시각적 강조 차등(기본 버튼 > 보조 버튼 > 약한 텍스트 링크)을 하단 고정 영역에 그대로 반영</li>
+    <li>참석형태 온라인 전환 시 <code>MEETING.video_link</code>가 없었더라도 자동 생성된다는 스펙 문구를 확인 팝업 안내문에 반영(회의실이 오프라인으로만 확정된 경우를 가정한 데모 문구)</li>
+    <li>이 화면의 "나"는 데모 역할에 따라 필수 참석자는 <strong>최유나</strong>, 선택 참석자는 <strong>정다은</strong>으로 설정 — wireframe_06·09와 동일한 인물 구성을 재사용해 같은 가상의 회의("3분기 로드맵 논의")를 공유함(각 파일은 독립된 데모 상태를 갖는 기존 관례는 유지)</li>
+    <li>아이콘은 전부 인라인 SVG(외부 CDN 웹폰트 의존 없음), 다른 와이어프레임과 동일한 스타일</li>
+  </ul>
+</div>
+
+<script>
+  // ── 데모 상태 ──────────────────────────────────────────
+  let role = "required"; // "required" | "optional"
+  let rescheduled = false;
+  let canAttendAsPlanned = true; // 원래 참석형태(대면/온라인)로 확정 시간에 참석 가능한지 — 재조율 여부와는 별개 변수
+  let resultState = null; // null | "confirmed" | "delegate" | "decline-required" | "decline-optional"
+
+  const CONFIRMED_TIME = "7/14(화) 14:00~15:00";
+  const PREVIOUS_TIME = "7/10(금) 10:00~11:00";
+  const ROOM = { name: "3층 회의실 A", location: "본사 3층", meta: "8인 · 화이트보드 · 화상장비" };
+  const VIDEO_LINK = "meet.example.com/qtr-road-map";
+
+  const ME = {
+    required: { name: "최유나", roleLabel: "필수 참석자", myMode: "대면" },
+    optional: { name: "정다은", roleLabel: "선택 참석자", myMode: "온라인" },
+  };
+
+  const DELEGATE_CANDIDATES = [
+    { name: "박서연", meta: "개발팀 · 대리" },
+    { name: "한소희", meta: "개발팀 · 사원" },
+    { name: "이지훈", meta: "기획팀 · 대리" },
+  ];
+
+  let selectedDelegateIdx = null;
+
+  const bodyEl = document.getElementById("reconfirmBody");
+  const footerEl = document.getElementById("footerActions");
+
+  // 아래에 더 볼 내용이 남아있을 때만 버튼 영역 위에 그림자로 경계 표시
+  function updateFooterBoundary() {
+    const atBottom = bodyEl.scrollTop + bodyEl.clientHeight >= bodyEl.scrollHeight - 2;
+    footerEl.classList.toggle("show-boundary", !atBottom);
+  }
+  bodyEl.addEventListener("scroll", updateFooterBoundary);
+
+  // 원래 선택했던 참석형태로 이 확정 시간에 참석 가능한지는 재조율 여부와는 별개 사실이라
+  // (재조율이 있었어도 그대로 참석 가능할 수 있고, 없었어도 다른 사정으로 어려울 수 있음)
+  // 별도 데모 변수로 분리함 — 구현 노트 참고
+  function needsOnlineSwitch() {
+    return !canAttendAsPlanned;
+  }
+
+  function renderHeader() {
+    const me = ME[role];
+    document.getElementById("myAvatar").textContent = me.name[0];
+    document.getElementById("myName").textContent = me.name;
+    document.getElementById("myRoleBadge").textContent = me.roleLabel;
+  }
+
+  function renderChangeNotice() {
+    if (!rescheduled) return "";
+    return `
+      <div class="change-notice">
+        <div class="change-notice-title">재조율로 회의 시간이 변경됐어요</div>
+        <del>${PREVIOUS_TIME}</del> → <strong>${CONFIRMED_TIME}</strong>
+      </div>`;
+  }
+
+  function renderInfoSection() {
+    return `
+      <div class="section">
+        <div class="section-title">확정 시간 · 장소 · 화상링크</div>
+        <div class="info-box">
+          <div class="info-box-row">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg>
+            <div class="info-box-main">${CONFIRMED_TIME}</div>
+          </div>
+          <div class="info-box-row">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-11.5a7 7 0 10-14 0C5 14.5 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.3"/></svg>
+            <div><div class="info-box-main">${ROOM.name}</div><div class="info-box-sub">${ROOM.location} · ${ROOM.meta}</div></div>
+          </div>
+          <div class="info-box-row">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="14" height="12" rx="1.5"/><path d="M16.5 10.5l5-2.5v8l-5-2.5"/></svg>
+            <div class="video-link-line info-box-sub">${VIDEO_LINK}</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderMyModeSection() {
+    const me = ME[role];
+    return `
+      <div class="section">
+        <div class="section-title">슬롯 응답 시 선택했던 내 참석 형태</div>
+        <div class="mode-box"><span class="mode-value">${me.myMode}</span> — 그사이 사정이 바뀌었다면 아래에서 조정할 수 있어요</div>
+      </div>`;
+  }
+
+  function renderResultSection() {
+    if (!resultState) return "";
+    if (resultState === "confirmed") {
+      return `
+        <div class="section">
+          <div class="result-box">
+            <div class="result-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <div class="result-title">${needsOnlineSwitch() ? "참석이 확정됐어요 · 온라인으로 전환됐어요" : "참석이 확정됐어요"}</div>
+            <div class="result-desc">${needsOnlineSwitch() ? "화상링크로 참여하시면 돼요. 재조율은 발생하지 않아요." : "기존 참석 형태 그대로 참여하시면 돼요."}</div>
+          </div>
+        </div>`;
+    }
+    if (resultState === "delegate") {
+      const d = DELEGATE_CANDIDATES[selectedDelegateIdx];
+      return `
+        <div class="section">
+          <div class="result-box">
+            <div class="result-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <div class="result-title">대리 참석자로 지정했어요</div>
+            <div class="result-desc">${d.name}님이 대신 참석해요. ${d.name}님께도 안내가 전달돼요.</div>
+          </div>
+        </div>`;
+    }
+    if (resultState === "decline-required") {
+      return `
+        <div class="section">
+          <div class="result-box warn">
+            <div class="result-title">불참이 접수되었습니다</div>
+            <div class="result-desc">다른 시간으로 재조율을 시작합니다. 이미 확정됐던 일정이라 재조율 과정에서 다른 참석자분들의 일정이 조정될 수 있어요.</div>
+          </div>
+        </div>`;
+    }
+    if (resultState === "decline-optional") {
+      return `
+        <div class="section">
+          <div class="result-box warn">
+            <div class="result-title">불참으로 접수됐어요</div>
+            <div class="result-desc">다른 참석자 기준으로 회의는 그대로 진행돼요. 이후 안내는 회의 상세 화면(알림 도착 시)에서 다시 확인할 수 있어요.</div>
+          </div>
+        </div>`;
+    }
+    return "";
+  }
+
+  function renderBody() {
+    bodyEl.innerHTML =
+      renderChangeNotice() +
+      renderInfoSection() +
+      renderMyModeSection() +
+      renderResultSection();
+  }
+
+  function renderFooter() {
+    if (resultState) {
+      footerEl.innerHTML = `<div class="footer-note">이미 응답을 완료했어요. 이 회의 상세는 "내 회의"에서 다시 볼 수 있어요.</div>`;
+      return;
+    }
+    const confirmLabel = needsOnlineSwitch() ? "참석 확정 · 온라인 전환" : "참석 확정";
+    footerEl.innerHTML = `
+      <button type="button" class="footer-btn primary" id="confirmAttendBtn">${confirmLabel}</button>
+      <button type="button" class="footer-btn secondary" id="delegateBtn">대리 참석자 지정</button>
+      <button type="button" class="footer-link" id="declineBtn">불참 통보</button>
+    `;
+    bindFooterEvents();
+  }
+
+  function bindFooterEvents() {
+    const confirmBtn = document.getElementById("confirmAttendBtn");
+    if (confirmBtn) {
+      confirmBtn.addEventListener("click", () => {
+        const online = needsOnlineSwitch();
+        openConfirm(
+          online ? "온라인으로 전환하고 참석을 확정할까요?" : "참석을 확정할까요?",
+          online
+            ? "참석자는 그대로 유지되어 재조율이 필요 없어요. 참석 형태가 온라인으로 바뀌고, 화상링크가 없었다면 자동으로 생성돼요."
+            : "슬롯 응답 시 선택했던 참석 형태 그대로 참석을 확정해요.",
+          () => {
+            resultState = "confirmed";
+            renderAll();
+            showToast("✓ 참석이 확정되었습니다");
+          }
+        );
+      });
+    }
+    const delegateBtn = document.getElementById("delegateBtn");
+    if (delegateBtn) delegateBtn.addEventListener("click", openDelegateModal);
+    const declineBtn = document.getElementById("declineBtn");
+    if (declineBtn) declineBtn.addEventListener("click", openDeclineModal);
+  }
+
+  // ── 확인 팝업 ──────────────────────────────────────────
+  const confirmOverlay = document.getElementById("confirmOverlay");
+  const confirmTitleEl = document.getElementById("confirmTitle");
+  const confirmBodyEl = document.getElementById("confirmBody");
+  let pendingConfirmAction = null;
+
+  function openConfirm(title, body, onOk) {
+    confirmTitleEl.textContent = title;
+    confirmBodyEl.textContent = body;
+    pendingConfirmAction = onOk;
+    confirmOverlay.classList.add("show");
+  }
+  function closeConfirm() {
+    confirmOverlay.classList.remove("show");
+    pendingConfirmAction = null;
+  }
+  document.getElementById("confirmCancelBtn").addEventListener("click", closeConfirm);
+  document.getElementById("confirmOkBtn").addEventListener("click", () => {
+    const action = pendingConfirmAction;
+    closeConfirm();
+    if (action) action();
+  });
+
+  // ── 대리 참석자 모달 ──────────────────────────────────
+  const delegateModal = document.getElementById("delegateModal");
+  const delegateOptionList = document.getElementById("delegateOptionList");
+  const delegateSubmitBtn = document.getElementById("delegateSubmitBtn");
+
+  function openDelegateModal() {
+    selectedDelegateIdx = null;
+    delegateSubmitBtn.disabled = true;
+    renderDelegateOptions();
+    delegateModal.classList.add("show");
+  }
+  function closeDelegateModal() { delegateModal.classList.remove("show"); }
+  function renderDelegateOptions() {
+    delegateOptionList.innerHTML = DELEGATE_CANDIDATES.map((d, i) => `
+      <div class="delegate-option ${selectedDelegateIdx === i ? "selected" : ""}" data-idx="${i}">
+        <span class="avatar avatar-sm">${d.name[0]}</span>
+        <div><div class="delegate-name">${d.name}</div><div class="delegate-meta">${d.meta}</div></div>
+      </div>`).join("");
+  }
+  delegateOptionList.addEventListener("click", (e) => {
+    const opt = e.target.closest("[data-idx]");
+    if (!opt) return;
+    selectedDelegateIdx = Number(opt.dataset.idx);
+    delegateSubmitBtn.disabled = false;
+    renderDelegateOptions();
+  });
+  document.getElementById("delegateModalClose").addEventListener("click", closeDelegateModal);
+  delegateSubmitBtn.addEventListener("click", () => {
+    if (selectedDelegateIdx === null) return;
+    const d = DELEGATE_CANDIDATES[selectedDelegateIdx];
+    closeDelegateModal();
+    openConfirm(
+      "대리 참석자로 지정할까요?",
+      `${d.name}님을 이 회의의 대리 참석자로 지정해요. ${d.name}님께 참석 안내가 전달돼요.`,
+      () => {
+        resultState = "delegate";
+        renderAll();
+        showToast(`✓ ${d.name}님이 대리 참석자로 지정되었습니다`);
+      }
+    );
+  });
+
+  // ── 불참 통보 모달 ──────────────────────────────────
+  const declineModal = document.getElementById("declineModal");
+  const declineWarnSlot = document.getElementById("declineWarnSlot");
+  const declineTextarea = document.getElementById("declineTextarea");
+  const declineSubmitBtn = document.getElementById("declineSubmitBtn");
+
+  function openDeclineModal() {
+    declineTextarea.value = "";
+    declineSubmitBtn.disabled = true;
+    declineWarnSlot.innerHTML = role === "required"
+      ? `<div class="decline-warn">다른 참석자들이 이미 이 일정에 맞춰 계획을 세웠을 수 있습니다. 재조율이 발생하면 일정이 빠듯해질 수 있어요.</div>`
+      : "";
+    declineModal.classList.add("show");
+  }
+  function closeDeclineModal() { declineModal.classList.remove("show"); }
+  document.getElementById("declineModalClose").addEventListener("click", closeDeclineModal);
+  declineTextarea.addEventListener("input", () => {
+    declineSubmitBtn.disabled = declineTextarea.value.trim().length === 0;
+  });
+  declineSubmitBtn.addEventListener("click", () => {
+    // 불참 통보는 사유 입력 자체가 확인 절차 역할을 하므로 별도 확인 팝업 없이 바로 처리
+    closeDeclineModal();
+    resultState = role === "required" ? "decline-required" : "decline-optional";
+    renderAll();
+    showToast(role === "required" ? "✓ 불참이 접수되어 재조율을 시작합니다" : "✓ 불참으로 접수되었습니다");
+  });
+
+  // ── 토스트 ──────────────────────────────────────────
+  const toastEl = document.getElementById("reconfirmToast");
+  let toastTimer = null;
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1500);
+  }
+
+  // ── 데모 컨트롤 바인딩 ──────────────────────────────
+  document.getElementById("roleDemoRow").addEventListener("click", (e) => {
+    const chip = e.target.closest(".demo-chip");
+    if (!chip) return;
+    role = chip.dataset.role;
+    resultState = null;
+    document.querySelectorAll("#roleDemoRow .demo-chip").forEach((c) => c.classList.toggle("active", c.dataset.role === role));
+    renderAll();
+  });
+  document.getElementById("rescheduleDemoRow").addEventListener("click", (e) => {
+    const chip = e.target.closest(".demo-chip");
+    if (!chip) return;
+    rescheduled = chip.dataset.reschedule === "yes";
+    resultState = null;
+    document.querySelectorAll("#rescheduleDemoRow .demo-chip").forEach((c) => c.classList.toggle("active", (c.dataset.reschedule === "yes") === rescheduled));
+    renderAll();
+  });
+  document.getElementById("attendableDemoRow").addEventListener("click", (e) => {
+    const chip = e.target.closest(".demo-chip");
+    if (!chip) return;
+    canAttendAsPlanned = chip.dataset.attendable === "yes";
+    resultState = null;
+    document.querySelectorAll("#attendableDemoRow .demo-chip").forEach((c) => c.classList.toggle("active", (c.dataset.attendable === "yes") === canAttendAsPlanned));
+    renderAll();
+  });
+
+  function renderAll() {
+    renderHeader();
+    renderBody();
+    renderFooter();
+    bodyEl.scrollTop = 0;
+    updateFooterBoundary();
+  }
+
+  document.querySelector('#roleDemoRow .demo-chip[data-role="required"]').classList.add("active");
+  document.querySelector('#rescheduleDemoRow .demo-chip[data-reschedule="no"]').classList.add("active");
+  document.querySelector('#attendableDemoRow .demo-chip[data-attendable="yes"]').classList.add("active");
+  renderAll();
+  // ---- 하단 탭바 터치 이동 (전 화면 공통 패턴) ----
+  const TAB_ROUTES = {
+    "예약": "예약 화면(화면 17)",
+    "내 회의": "내 회의 화면(화면 1)",
+    "알림": "알림 화면(화면 11)",
+    "내 정보": "내 정보 화면(화면 16)",
+  };
+  document.querySelector(".tab-bar").addEventListener("click", (e) => {
+    const item = e.target.closest(".tab-bar-item");
+    if (!item || item.classList.contains("active")) return;
+    const label = item.textContent.trim();
+    if (TAB_ROUTES[label]) showToast(`→ ${TAB_ROUTES[label]}로 이동`);
+  });
+</script>
+
+</body>
+</html>

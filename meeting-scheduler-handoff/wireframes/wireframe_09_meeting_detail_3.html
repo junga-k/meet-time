@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>와이어프레임 — 회의 상세 화면</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #1a1a1a;
+    --border-light: #c9c9c9;
+    --page-bg: #e9e9e7;
+    --card-bg: #ffffff;
+    --accent-red: #c0392b;
+    --accent-green: #1e7a3d;
+    --accent-amber: #9c6f00;
+    --accent-amber-bg: #fffaeb;
+    --accent-amber-border: #f2cb5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 16px;
+    background: var(--page-bg);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .frame-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+  .app-card {
+    width: 100%;
+    max-width: 390px;
+    background: var(--card-bg);
+    border: 1.5px solid var(--border);
+    height: 844px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .status-bar {
+    height: 24px;
+    flex-shrink: 0;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .status-icons { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+  .screen-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    position: relative;
+  }
+  .tab-bar {
+    height: 56px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-light);
+    background: #fafaf9;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-around;
+    padding-top: 8px;
+  }
+  .tab-bar-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    font-size: 9.5px;
+    color: var(--muted);
+  }
+  .tab-bar-item.active { color: var(--ink); font-weight: 700; }
+  .notif-icon-wrap { position: relative; display: inline-flex; }
+  .notif-dot {
+    position: absolute;
+    top: -1px; right: -1px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #d33;
+    border: 1px solid var(--card-bg);
+  }
+
+  .toast {
+    position: absolute;
+    bottom: 101px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--ink);
+    color: #fff;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    white-space: nowrap;
+    max-width: 320px;
+    text-align: center;
+    z-index: 45;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 헤더 */
+  .header {
+    padding: 14px 16px 0;
+    border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+  }
+  .back-arrow {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink);
+  }
+  .user-name { font-size: 13px; font-weight: 700; line-height: 1.2; }
+  .user-id-block { display: flex; align-items: center; gap: 7px; }
+  .avatar-md { width: 24px; height: 24px; font-size: 10.5px; }
+  .badge-row { display: flex; justify-content: flex-end; margin-bottom: 10px; gap: 6px; }
+  .badge {
+    font-size: 9.5px;
+    padding: 2px 7px;
+    border: 1px solid var(--ink);
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .badge.status-declined { background: #fdeeea; color: var(--accent-red); border-color: transparent; }
+  .badge.status-confirmed { border-color: var(--accent-green); color: var(--accent-green); }
+  .badge.status-ended { border-color: var(--muted); color: var(--muted); }
+  .meeting-title { font-size: 18px; font-weight: 700; margin: 0 0 10px; line-height: 1.3; }
+  .avatar {
+    border-radius: 50%;
+    border: 1px solid var(--border-light);
+    background: #f0f0ee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--ink);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .avatar-sm { width: 20px; height: 20px; font-size: 9px; }
+
+  /* 데모 컨트롤 (실제 앱 UI 아님) */
+  .demo-controls {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    background: #fff8e6;
+    border-bottom: 1px solid #e0c97a;
+    font-size: 10px;
+    color: #7a5c00;
+  }
+  .demo-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+  .demo-chip {
+    padding: 3px 8px;
+    border: 1px solid #c9a63e;
+    background: #fff;
+    color: #7a5c00;
+    font-size: 9.5px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .demo-chip.active { background: #7a5c00; color: #fff; }
+
+  /* 본문 스크롤 영역 */
+  .detail-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 16px 16px;
+    min-height: 60px;
+  }
+  .section { margin-bottom: 18px; }
+  .section-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .section-sub { font-size: 10.5px; color: var(--muted); font-weight: 400; }
+
+  .confirmed-banner {
+    border: 1.5px solid var(--ink);
+    background: #fff;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    text-align: center;
+  }
+  .confirmed-banner-label { font-size: 10.5px; color: var(--muted); font-weight: 700; letter-spacing: 0.02em; margin-bottom: 4px; }
+  .confirmed-banner-time { font-size: 17px; font-weight: 700; color: var(--ink); }
+  .confirmed-banner-ended { font-size: 10.5px; color: var(--muted); margin-top: 5px; }
+
+  .info-box {
+    border: 1px solid var(--border-light);
+    padding: 11px 12px;
+    font-size: 12px;
+    line-height: 1.7;
+  }
+  .info-box-row { display: flex; align-items: flex-start; gap: 8px; }
+  .info-box-row + .info-box-row { margin-top: 4px; }
+  .info-box-row svg { flex-shrink: 0; margin-top: 2px; color: var(--muted); }
+  .info-box-main { font-weight: 700; }
+  .info-box-sub { color: var(--muted); font-size: 11px; }
+  .video-link-line { word-break: break-all; }
+
+  .role-group-label { font-size: 10.5px; color: var(--muted); margin: 8px 0 2px; font-weight: 700; }
+  .participant-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 0;
+    border-bottom: 1px solid #f0f0ee;
+    font-size: 12px;
+  }
+  .participant-row.me { background: #f7f7f5; margin: 0 -8px; padding: 7px 8px; border-bottom: 1px solid #e5e5e2; }
+  .participant-left { display: flex; align-items: center; gap: 7px; }
+  .me-tag { font-size: 9px; color: var(--muted); font-weight: 700; }
+  .participant-right { display: flex; align-items: center; gap: 6px; }
+  .mode-tag { font-size: 9.5px; color: var(--muted); }
+  .resp-chip {
+    font-size: 9.5px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+  .resp-chip.done { background: #eaf6ee; color: var(--accent-green); }
+  .resp-chip.declined { background: #fdeeea; color: var(--accent-red); }
+
+  .agenda-row {
+    padding: 9px 0;
+    border-bottom: 1px solid #f0f0ee;
+    font-size: 12px;
+  }
+  .agenda-row:last-child { border-bottom: none; }
+  .agenda-top-line { display: flex; align-items: center; gap: 6px; }
+  .agenda-title { font-weight: 700; }
+  .required-tag {
+    font-size: 8.5px;
+    padding: 1px 6px;
+    background: var(--ink);
+    color: #fff;
+    font-weight: 700;
+  }
+  .agenda-author { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+
+  .notice-box {
+    border: 1px solid var(--accent-amber-border);
+    background: var(--accent-amber-bg);
+    color: var(--accent-amber);
+    padding: 11px 12px;
+    font-size: 11.5px;
+    line-height: 1.7;
+    margin-bottom: 18px;
+  }
+  .notice-box-title { font-weight: 700; margin-bottom: 3px; display: flex; align-items: center; gap: 5px; }
+
+  /* 하단 고정 액션 */
+  .footer {
+    flex-shrink: 0;
+    padding: 10px 16px 12px;
+    background: #fafaf9;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: box-shadow 0.15s ease;
+  }
+  .footer.show-boundary {
+    box-shadow: 0 -3px 8px rgba(0,0,0,0.10);
+  }
+  .footer-btn {
+    width: 100%;
+    padding: 11px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    border: 1px solid var(--ink);
+  }
+  .footer-btn.primary { background: var(--ink); color: #fff; }
+  .footer-btn.secondary { background: #fff; color: var(--ink); }
+  .footer-btn.disabled { background: #fff; color: var(--border-light); border-color: var(--border-light); cursor: default; }
+
+  /* 확인 팝업 */
+  .confirm-modal-overlay {
+    position: absolute; inset: 0; background: rgba(20,20,20,0.4);
+    z-index: 30; display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  .confirm-modal-overlay.show { display: flex; }
+  .confirm-modal-box { background: #fff; border: 1.5px solid var(--ink); width: 100%; padding: 18px; }
+  .confirm-modal-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+  .confirm-modal-body { font-size: 12px; color: var(--ink); line-height: 1.7; margin-bottom: 16px; }
+  .confirm-modal-actions { display: flex; gap: 8px; }
+  .confirm-modal-actions button {
+    flex: 1; padding: 10px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    font-family: inherit; border: 1px solid var(--ink);
+  }
+  .confirm-btn-cancel { background: #fff; color: var(--ink); }
+  .confirm-btn-ok { background: var(--ink); color: #fff; }
+
+  /* 구현 노트 */
+  .dev-notes {
+    width: 100%;
+    max-width: 390px;
+    margin-top: 24px;
+    border: 1px dashed var(--border);
+    padding: 16px 18px;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--ink);
+    background: #fff;
+  }
+  .dev-notes h3 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .dev-notes code { background: #f0f0ee; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  .dev-notes ul { margin: 4px 0 12px; padding-left: 18px; }
+  .dev-notes ul:last-child { margin-bottom: 0; }
+  .dev-notes .warn { color: #8a4b00; }
+</style>
+</head>
+<body>
+
+<div class="frame-label">화면 9 · 회의 상세 (기본 읽기 전용, "참석으로 변경" 예외 1건) — MVP</div>
+
+<div class="app-card">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span class="status-icons">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19v-3M9 19v-6M14 19v-9M19 19V5"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5a15 15 0 0118 0"/><path d="M6.2 12a10.5 10.5 0 0111.6 0"/><path d="M9.5 15.5a5.8 5.8 0 015 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.2v3.6"/><rect x="4" y="9" width="10" height="6" fill="currentColor" stroke="none"/></svg>
+    </span>
+  </div>
+
+  <div class="screen-content">
+    <div class="header">
+      <div class="header-top">
+        <div class="back-arrow"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></div>
+        <div class="user-id-block">
+          <span class="avatar avatar-md">정</span>
+          <span class="user-name">정다은</span>
+        </div>
+      </div>
+      <div class="badge-row" id="badgeRow"><!-- JS로 렌더링 --></div>
+      <div class="meeting-title">3분기 로드맵 논의</div>
+    </div>
+
+    <div class="demo-controls">
+      [데모 전용] 이 화면을 보는 "나"(정다은, 선택 참석자)의 참석 상태·회의 진행 상태를 바꿔서 확인합니다. 실제 화면에는 이 컨트롤이 없습니다.
+      <div class="demo-row" id="attendanceDemoRow">
+        <span class="demo-chip" data-attendance="confirmed">확정 참석자</span>
+        <span class="demo-chip" data-attendance="declined">불참</span>
+      </div>
+      <div class="demo-row" id="phaseDemoRow">
+        <span class="demo-chip" data-phase="upcoming">회의 전</span>
+        <span class="demo-chip" data-phase="ongoing">회의 진행 중</span>
+        <span class="demo-chip" data-phase="ended">회의 종료</span>
+      </div>
+    </div>
+
+    <div class="detail-body" id="detailBody"><!-- JS로 렌더링 --></div>
+
+    <div class="toast" id="detailToast"></div>
+
+    <div class="footer" id="footerActions"><!-- JS로 렌더링 --></div>
+
+    <div class="confirm-modal-overlay" id="confirmOverlay">
+      <div class="confirm-modal-box">
+        <div class="confirm-modal-title" id="confirmTitle"></div>
+        <div class="confirm-modal-body" id="confirmBody"></div>
+        <div class="confirm-modal-actions">
+          <button type="button" class="confirm-btn-cancel" id="confirmCancelBtn">취소</button>
+          <button type="button" class="confirm-btn-ok" id="confirmOkBtn">확인</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/></svg>예약</div>
+    <div class="tab-bar-item active"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>내 회의</div>
+    <div class="tab-bar-item"><span class="notif-icon-wrap"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10.5a6 6 0 1112 0c0 4.2 1.5 5.5 1.5 5.5h-15S6 14.7 6 10.5z"/><path d="M9.7 18.5a2.3 2.3 0 004.6 0"/></svg><span class="notif-dot"></span></span>알림</div>
+    <div class="tab-bar-item"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20c0-4.14 3.36-7.5 7.5-7.5s7.5 3.36 7.5 7.5"/></svg>내 정보</div>
+  </div>
+</div>
+
+<div class="dev-notes">
+  <h3>구현 노트 (Claude Code 참고용)</h3>
+  <ul>
+    <li>이 화면은 기본적으로 <strong>읽기 전용</strong>(확정된 회의의 정보 확인용)이며, 접근 대상은 <code>MEETING.status</code>='확정'인 회의의 전체 참석자. 유일한 예외가 아래 "참석으로 변경" 버튼 — 그 외 버튼(캘린더 추가, 회의록 이동)은 정보 열람·연동일 뿐 데이터를 바꾸지 않음</li>
+    <li>상단 <strong>[데모 전용]</strong> 컨트롤은 이 화면을 보는 로그인 사용자(여기서는 선택 참석자 "정다은")의 <code>confirmation_status</code>와 회의 종료 여부를 바꿔가며 세 가지 경우를 한 파일에서 확인하기 위한 와이어프레임 전용 장치이며 실제 화면에는 없음</li>
+    <li><strong>"참석으로 변경" 버튼(신규 — 이번 요청으로 추가)</strong>: 선택 참석자가 압축 후보 전부 불가(화면 12) 또는 참석재확인 불참 통보(화면 8)로 <code>confirmation_status</code>='불참'이 된 뒤, 최종 확정 시점에 발송되는 <code>NOTIFICATION</code>(type: 불참안내)을 보고 이 화면으로 들어왔을 때 노출됨. 노출 조건은 <strong>본인이 선택 참석자 && confirmation_status='불참' && 아직 회의 시작 전</strong> 세 가지 모두. 클릭 시 확인 팝업("참석으로 변경하시겠어요?") → 확인하면 <code>confirmation_status</code>만 '확정'으로 되돌리고 <strong>재조율은 트리거하지 않음</strong>(이미 필수 참석자 기준으로 확정된 시간에 합류하는 것뿐이라 시간 자체는 그대로). 상세 배경은 <code>screen_specs.md</code> 화면 12 "선택 참석자 불참 처리 후속 안내" 절, <code>db_model_mvp.md</code> NOTIFICATION.type의 <code>불참안내</code> 항목 참고</li>
+    <li><strong>회의록 접근 규칙 갱신(§2-49 재조정) — "회의 종료 후"가 아니라 "회의 시작 후"부터 접근 가능</strong>으로 최종 확정. 회의가 시작된 순간(진행 중 또는 종료, <code>meetingStarted()</code>)부터는 <strong>확정/불참 상태와 무관하게</strong> 하단 버튼이 "회의록 확인하기" 하나로 통일되어 화면10(회의록·향후 추진 과제, `wireframe_17_meeting_minutes_1.html`)으로 연결된다(데모라 토스트로 이동 시뮬레이션). 회의 시작 전에는 기존과 동일하게 확정 참석자는 "캘린더에 추가" + 비활성 "회의록·향후 추진 과제 이동 (회의 시작 후)", 불참 참석자는 "참석으로 변경" + "캘린더에 추가"가 노출된다. "참석으로 변경" 버튼도 동일하게 회의가 <strong>시작</strong>되는 순간 사라짐(기존엔 "종료" 기준이었으나 시작 시점 기준 필수 조건과 맞춰 통일).</li>
+    <li><strong>데모 컨트롤을 2개 축으로 분리</strong>(참석 상태: 확정/불참 × 회의 진행 상태: 회의 전/진행 중/회의 종료) — 기존엔 3개 시나리오 칩 하나로 묶여있어 "확정 참석자 + 회의 종료" 같은 조합을 보여줄 수 없었는데, 이번에 두 축을 독립적으로 토글할 수 있게 바꿔 모든 조합(확정×회의전/진행중/종료, 불참×회의전/진행중/종료)을 한 파일에서 확인 가능</li>
+    <li><strong>장소/화상링크</strong>: <code>ROOM_BOOKING</code> → <code>ROOM.name</code>/<code>ROOM.location</code>과 <code>MEETING.video_link</code>를 함께 표시(하이브리드 모드 가정, wireframe_06_dashboard.html과 동일한 회의실·화상링크 데모 데이터를 재사용해 화면 간 일관성 유지)</li>
+    <li><strong>참석자 목록</strong>: 필수/선택 역할별로 묶어 표시하고, 각자의 <code>confirmation_status</code>(확정/불참)와 슬롯 응답 시 선택했던 <code>attendance_mode</code>(대면/온라인)를 함께 보여줌. "나"에 해당하는 행은 배경을 옅게 강조하고 "나" 태그를 붙여 구분</li>
+    <li><strong>안건 목록</strong>은 <code>AGENDA.title</code>과 작성자, <code>is_required</code>(필독) 여부만 요약 표시 — 상세 내용·첨부 확인은 화면 4(안건 등록/수정 화면)에서 이어지는 것으로 가정(이 화면에서는 목록 열람까지만, 별도 상세 진입 화면은 스펙에 없어 이 와이어프레임에도 추가하지 않음)</li>
+    <li>이 화면과 wireframe_06_dashboard.html의 회의 제목·확정 시간·회의실·참석자 이름은 동일한 가상의 회의("3분기 로드맵 논의")를 공유하도록 맞췄지만, 각 와이어프레임 파일은 독립된 데모 데이터를 갖는 기존 관례상 세부 수치(참석형태 배분 등)까지 완벽히 일치시키진 않음</li>
+    <li><strong>상단 상태 배지 3종 정리</strong>: "불참으로 기록됨" → "불참으로 변경" → 최종적으로 <strong>"불참"</strong>으로 문구를 점점 짧게 다듬음(상태 배지는 한눈에 보는 용도라 서술형보다 단답형이 어울림). 색상은 빨강(<code>--accent-red</code>, 경고·불가 느낌이 너무 강함) → amber(노란색 느낌이 부담스러움) → 파랑(중립적이지만 "불참"이 갖는 상태감이 옅어짐) → 톤다운된 빨강을 배경색 없이 테두리+텍스트로만 표시하는 방식을 거쳤으나, <strong>D8 정합성 재검토(2026-07)</strong>에서 wireframe_05_meeting_list.html의 회의 상태 배지 컨벤션(재조율중 = <code>background: #fdeeea; color: var(--accent-red)</code>)과 스타일이 어긋난다는 지적에 따라 최종적으로 <strong>표준 <code>--accent-red</code>(#c0392b) 텍스트 + 연한 빨강 배경(<code>#fdeeea</code>)의 채워진(filled) 배지</strong>로 되돌림(톤다운 색상·테두리 전용 스타일은 폐기, <code>--accent-red-muted</code> 변수도 다른 용도가 없어 제거). "회의 종료됨"도 같은 이유로 <strong>"회의 종료"</strong>로 축약. 확정 상태에는 대칭으로 <strong>"참석" 배지</strong>(초록)를 표시</li>
+    <li><strong>PARTICIPANT.confirmation_status='확정' 자동 기록 규칙(A1)</strong>: <code>PARTICIPANT.confirmation_status</code>='확정'은 회의 시간이 최종 확정되는 순간 시스템이 전체 확정 참석자에게 자동으로 기록됨. 이 화면의 "참석으로 변경" 버튼(모든 압축후보가 불가/불참으로 처리된 뒤 회의 시작 전이면 재전환 가능)은 그 이후의 예외적 재전환 경로로 별도 유지</li>
+    <li>아이콘은 전부 인라인 SVG(외부 CDN 웹폰트 의존 없음), 다른 와이어프레임과 동일한 스타일</li>
+  </ul>
+</div>
+
+<script>
+  // ── 데모 상태 ──────────────────────────────────────────
+  // attendance: "confirmed" | "declined" / phase: "upcoming"(회의 전) | "ongoing"(진행 중) | "ended"(종료)
+  // 회의록 접근 규칙(§2-49 갱신)이 "회의 시작부터 실시간 작성 가능"으로 바뀌면서, 화면9의 회의록 관련 버튼은
+  // 회의가 "시작"된 시점(ongoing 또는 ended) 전부에서 활성화되고, 이전처럼 "종료" 시점만 기준으로 하지 않는다.
+  let attendance = "confirmed";
+  let phase = "upcoming";
+
+  const CONFIRMED_TIME = "7/14(화) 14:00~15:00";
+  const ROOM = { name: "3층 회의실 A", location: "본사 3층", meta: "8인 · 화이트보드 · 화상장비" };
+  const VIDEO_LINK = "meet.example.com/qtr-road-map";
+
+  // wireframe_06_dashboard.html과 동일한 인물·역할 구성을 재사용(회의 하나를 화면 간에 공유하는 것으로 가정)
+  const PARTICIPANTS = {
+    required: [
+      { name: "김민준", isOrganizer: true, mode: "대면" },
+      { name: "박서연", mode: "온라인" },
+      { name: "이지훈", mode: "대면" },
+      { name: "최유나", mode: "온라인" },
+    ],
+    optional: [
+      { name: "정다은", mode: "온라인", isMe: true }, // "나" — confirmation_status는 scenario에 따라 계산
+      { name: "한소희", mode: "대면" },
+    ],
+  };
+
+  const AGENDA_ITEMS = [
+    { title: "3분기 목표 리뷰", author: "김민준", required: true },
+    { title: "예산안 논의", author: "박서연", required: false },
+    { title: "팀 리소스 배분", author: "김민준", required: false },
+  ];
+
+  const badgeRowEl = document.getElementById("badgeRow");
+  const detailBodyEl = document.getElementById("detailBody");
+  const footerEl = document.getElementById("footerActions");
+
+  // 아래에 더 볼 내용이 남아있을 때만 버튼 영역 위에 그림자로 경계 표시
+  function updateFooterBoundary() {
+    const atBottom = detailBodyEl.scrollTop + detailBodyEl.clientHeight >= detailBodyEl.scrollHeight - 2;
+    footerEl.classList.toggle("show-boundary", !atBottom);
+  }
+  detailBodyEl.addEventListener("scroll", updateFooterBoundary);
+
+  function myStatus() {
+    return attendance === "confirmed" ? "확정" : "불참";
+  }
+  function meetingStarted() {
+    // 회의록 접근·"참석으로 변경" 버튼 소멸의 공통 기준점 — 회의가 시작된 순간(진행 중 또는 종료)
+    return phase === "ongoing" || phase === "ended";
+  }
+  function meetingEnded() {
+    return phase === "ended";
+  }
+
+  function renderBadges() {
+    let html = `<div class="badge">선택 참석자</div>`;
+    html += myStatus() === "불참"
+      ? `<div class="badge status-declined">불참</div>`
+      : `<div class="badge status-confirmed">참석</div>`;
+    if (phase === "ongoing") html += `<div class="badge status-ended">진행 중</div>`;
+    if (phase === "ended") html += `<div class="badge status-ended">회의 종료</div>`;
+    badgeRowEl.innerHTML = html;
+  }
+
+  function renderConfirmedBanner() {
+    let phaseLine = "";
+    if (phase === "ongoing") phaseLine = `<div class="confirmed-banner-ended">지금 진행 중인 회의예요</div>`;
+    else if (phase === "ended") phaseLine = `<div class="confirmed-banner-ended">이 회의는 이미 종료됐어요</div>`;
+    return `
+      <div class="confirmed-banner">
+        <div class="confirmed-banner-label">확정된 회의 시간</div>
+        <div class="confirmed-banner-time">${CONFIRMED_TIME}</div>
+        ${phaseLine}
+      </div>`;
+  }
+
+  function renderNoticeBox() {
+    if (myStatus() !== "불참") return "";
+    if (!meetingStarted()) {
+      return `
+        <div class="notice-box">
+          <div class="notice-box-title">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>
+            이 회의에 불참으로 기록되었어요
+          </div>
+          아직 회의 전이에요. 참석 가능하시면 아래 버튼으로 지금 참석으로 변경할 수 있어요. 참석이 어려우시면 회의 시작 후 회의록을 확인해주세요.
+        </div>`;
+    }
+    return `
+      <div class="notice-box">
+        <div class="notice-box-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>
+          이 회의에 불참으로 기록되었어요
+        </div>
+        이미 ${phase === "ongoing" ? "시작된" : "종료된"} 회의라 참석으로 변경할 수 없어요. 회의록을 확인해주세요.
+      </div>`;
+  }
+
+  function renderInfoSection() {
+    return `
+      <div class="section">
+        <div class="section-title">장소 · 화상링크</div>
+        <div class="info-box">
+          <div class="info-box-row">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-11.5a7 7 0 10-14 0C5 14.5 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.3"/></svg>
+            <div><div class="info-box-main">${ROOM.name}</div><div class="info-box-sub">${ROOM.location} · ${ROOM.meta}</div></div>
+          </div>
+          <div class="info-box-row">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="14" height="12" rx="1.5"/><path d="M16.5 10.5l5-2.5v8l-5-2.5"/></svg>
+            <div class="video-link-line info-box-sub">${VIDEO_LINK}</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function participantRowHtml(p) {
+    const status = p.isMe ? myStatus() : "확정";
+    return `
+      <div class="participant-row ${p.isMe ? "me" : ""}">
+        <div class="participant-left">
+          <span class="avatar avatar-sm">${p.name[0]}</span>
+          <span>${p.name}${p.isOrganizer ? " (주최자)" : ""}</span>
+          ${p.isMe ? '<span class="me-tag">나</span>' : ""}
+        </div>
+        <div class="participant-right">
+          <span class="mode-tag">${p.mode}</span>
+          <span class="resp-chip ${status === "확정" ? "done" : "declined"}">${status}</span>
+        </div>
+      </div>`;
+  }
+
+  function renderParticipantSection() {
+    const reqRows = PARTICIPANTS.required.map(participantRowHtml).join("");
+    const optRows = PARTICIPANTS.optional.map(participantRowHtml).join("");
+    return `
+      <div class="section">
+        <div class="section-title">참석자 목록</div>
+        <div class="role-group-label">필수 참석자</div>
+        ${reqRows}
+        <div class="role-group-label">선택 참석자</div>
+        ${optRows}
+      </div>`;
+  }
+
+  function renderAgendaSection() {
+    const rows = AGENDA_ITEMS.map((a) => `
+      <div class="agenda-row">
+        <div class="agenda-top-line">
+          <span class="agenda-title">${a.title}</span>
+          ${a.required ? '<span class="required-tag">필독</span>' : ""}
+        </div>
+        <div class="agenda-author">작성자 · ${a.author}</div>
+      </div>`).join("");
+    return `
+      <div class="section">
+        <div class="section-title">안건 목록</div>
+        ${rows}
+      </div>`;
+  }
+
+  function renderDetailBody() {
+    detailBodyEl.innerHTML =
+      renderConfirmedBanner() +
+      renderNoticeBox() +
+      renderInfoSection() +
+      renderParticipantSection() +
+      renderAgendaSection();
+  }
+
+  function renderFooter() {
+    const status = myStatus();
+    let html;
+    if (meetingStarted()) {
+      // 회의가 시작된 뒤(진행 중·종료 공통)에는 확정/불참 여부와 무관하게 "캘린더에 추가"가 의미 없으므로
+      // 노출하지 않고, 회의록·향후 추진 과제 이동 버튼만 남김(§2-49 갱신 — 기존엔 "종료 후"만 기준이었음)
+      html = `<button type="button" class="footer-btn primary" id="goToMinutesBtn">회의록 확인하기</button>`;
+    } else if (status === "불참") {
+      html = `<button type="button" class="footer-btn primary" id="changeToAttendBtn">참석으로 변경</button><button type="button" class="footer-btn secondary" id="addCalendarBtn">캘린더에 추가</button>`;
+    } else {
+      html = `<button type="button" class="footer-btn secondary" id="addCalendarBtn">캘린더에 추가</button><button type="button" class="footer-btn disabled" disabled>회의록·향후 추진 과제 이동 (회의 시작 후)</button>`;
+    }
+    footerEl.innerHTML = html;
+    bindFooterEvents();
+  }
+
+  function bindFooterEvents() {
+    const addCalBtn = document.getElementById("addCalendarBtn");
+    if (addCalBtn) addCalBtn.addEventListener("click", () => showToast("✓ 캘린더에 추가되었습니다"));
+
+    const goToMinutesBtn = document.getElementById("goToMinutesBtn");
+    if (goToMinutesBtn) goToMinutesBtn.addEventListener("click", () => showToast("→ 회의록·향후 추진 과제 화면(화면 10)로 이동"));
+
+    const changeBtn = document.getElementById("changeToAttendBtn");
+    if (changeBtn) {
+      changeBtn.addEventListener("click", () => {
+        openConfirm(
+          "참석으로 변경하시겠어요?",
+          "확정된 시간에 다시 참석자로 등록돼요. 이미 필수 참석자 기준으로 확정된 시간이라 재조율 없이 그대로 진행돼요.",
+          () => {
+            attendance = "confirmed";
+            document.querySelectorAll("#attendanceDemoRow .demo-chip").forEach((c) => c.classList.toggle("active", c.dataset.attendance === attendance));
+            renderAll();
+            showToast("✓ 참석으로 변경되었습니다");
+          }
+        );
+      });
+    }
+  }
+
+  // ── 확인 팝업 ──────────────────────────────────────────
+  const confirmOverlay = document.getElementById("confirmOverlay");
+  const confirmTitleEl = document.getElementById("confirmTitle");
+  const confirmBodyEl = document.getElementById("confirmBody");
+  let pendingConfirmAction = null;
+
+  function openConfirm(title, body, onOk) {
+    confirmTitleEl.textContent = title;
+    confirmBodyEl.textContent = body;
+    pendingConfirmAction = onOk;
+    confirmOverlay.classList.add("show");
+  }
+  function closeConfirm() {
+    confirmOverlay.classList.remove("show");
+    pendingConfirmAction = null;
+  }
+  document.getElementById("confirmCancelBtn").addEventListener("click", closeConfirm);
+  document.getElementById("confirmOkBtn").addEventListener("click", () => {
+    const action = pendingConfirmAction;
+    closeConfirm();
+    if (action) action();
+  });
+
+  // ── 토스트 ──────────────────────────────────────────
+  const toastEl = document.getElementById("detailToast");
+  let toastTimer = null;
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1500);
+  }
+
+  // ── 데모 컨트롤 바인딩 ──────────────────────────────
+  document.getElementById("attendanceDemoRow").addEventListener("click", (e) => {
+    const chip = e.target.closest(".demo-chip");
+    if (!chip) return;
+    attendance = chip.dataset.attendance;
+    document.querySelectorAll("#attendanceDemoRow .demo-chip").forEach((c) => c.classList.toggle("active", c.dataset.attendance === attendance));
+    renderAll();
+  });
+  document.getElementById("phaseDemoRow").addEventListener("click", (e) => {
+    const chip = e.target.closest(".demo-chip");
+    if (!chip) return;
+    phase = chip.dataset.phase;
+    document.querySelectorAll("#phaseDemoRow .demo-chip").forEach((c) => c.classList.toggle("active", c.dataset.phase === phase));
+    renderAll();
+  });
+
+  function renderAll() {
+    renderBadges();
+    renderDetailBody();
+    renderFooter();
+    detailBodyEl.scrollTop = 0;
+    updateFooterBoundary();
+  }
+
+  document.querySelector('#attendanceDemoRow .demo-chip[data-attendance="confirmed"]').classList.add("active");
+  document.querySelector('#phaseDemoRow .demo-chip[data-phase="upcoming"]').classList.add("active");
+  renderAll();
+  // ---- 하단 탭바 터치 이동 (전 화면 공통 패턴) ----
+  const TAB_ROUTES = {
+    "예약": "예약 화면(화면 17)",
+    "내 회의": "내 회의 화면(화면 1)",
+    "알림": "알림 화면(화면 11)",
+    "내 정보": "내 정보 화면(화면 16)",
+  };
+  document.querySelector(".tab-bar").addEventListener("click", (e) => {
+    const item = e.target.closest(".tab-bar-item");
+    if (!item || item.classList.contains("active")) return;
+    const label = item.textContent.trim();
+    if (TAB_ROUTES[label]) showToast(`→ ${TAB_ROUTES[label]}로 이동`);
+  });
+</script>
+
+</body>
+</html>
