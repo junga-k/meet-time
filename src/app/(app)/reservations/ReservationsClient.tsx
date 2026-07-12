@@ -146,24 +146,7 @@ export function ReservationsClient({
         </div>
       ) : (
         <div className="screen-scroll">
-          {myRoomReservations.length > 0 && (
-            <>
-              <div className="recent-label">내 회의실 예약</div>
-              {myRoomReservations.map((r) => (
-                <div key={r.meetingId} className="recent-row" onClick={() => jumpToReservation(r)}>
-                  <div>
-                    <div className="recent-title">{r.meetingTitle}</div>
-                    <div className="recent-meta">{r.roomName}</div>
-                  </div>
-                  <span className="recent-meta">
-                    {formatMeetingDate(r.startTime)} {formatTimeRange(r.startTime, r.endTime)}
-                  </span>
-                </div>
-              ))}
-            </>
-          )}
-
-          <div className="room-search-row" style={myRoomReservations.length > 0 ? { marginTop: 14 } : undefined}>
+          <div className="room-search-row">
             <div className="date-field" onClick={() => setCalendarOpen((v) => !v)}>
               {selectedDate ? formatDateField(selectedDate) : "날짜 선택"}
             </div>

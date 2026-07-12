@@ -1,6 +1,6 @@
 import { requireCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getRoomAvailability, getMyRoomReservations } from "@/server/actions/rooms";
+import { getRoomAvailability } from "@/server/actions/rooms";
 import type { MeetingCardVM } from "@/lib/meetingCard";
 import { ReservationsClient } from "./ReservationsClient";
 
@@ -9,7 +9,7 @@ export default async function ReservationsPage() {
   const today = new Date();
   const now = Date.now();
 
-  const [rooms, myMeetings, myRoomReservations] = await Promise.all([
+  const [rooms, myMeetings] = await Promise.all([
     getRoomAvailability(today),
     prisma.meeting.findMany({
       where: { organizerId: user.id },
@@ -21,7 +21,6 @@ export default async function ReservationsPage() {
       orderBy: { createdAt: "desc" },
       take: 5,
     }),
-    getMyRoomReservations(user.id),
   ]);
 
   const myMeetingCards: MeetingCardVM[] = myMeetings.map((m) => {
@@ -47,7 +46,6 @@ export default async function ReservationsPage() {
       initialDate={today.toISOString()}
       initialRooms={rooms}
       myMeetings={myMeetingCards}
-      myRoomReservations={myRoomReservations}
     />
   );
 }
