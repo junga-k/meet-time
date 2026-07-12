@@ -2,7 +2,9 @@
 
 > 이 파일은 세션이 끊기거나 나중에 이어서 작업할 때 "지금까지 뭘 했고 뭐가 남았는지" 바로 파악하기 위한 문서입니다. 원본 계획 전문은 `/Users/idonghun/.claude/plans/valiant-stargazing-pumpkin.md`에 있고, 설계 스펙 원본은 `meeting-scheduler-handoff/` 폴더에 있습니다.
 
-## 상태: 17개 화면 전부 구현 + 와이어프레임 디자인 정밀 대조 완료 (2026-07-12 기준)
+## 상태: 17개 화면 구현 완료 + Vercel/Turso 배포 완료 + 실사용 피드백 다수 반영 (2026-07-13 기준)
+
+> 최신 진행 상황은 아래 "후속 작업 2"(2026-07-12 밤 ~ 07-13)를 먼저 확인하세요. 배포 URL: `https://meet-time-seven.vercel.app`
 
 10개 작업 전부 완료 후, **와이어프레임 파일들을 다시 하나씩 읽고 실제 CSS 값(색상/여백/모서리/타이포그래피/컴포넌트 패턴)에 맞춰 전 화면 재작업 완료**(추가 작업 6건, 아래 "와이어프레임 정밀 대조" 참고). `npx tsc --noEmit`, `npx eslint src`, `npx next build` 모두 통과. 핵심 플로우(회의 생성→필수응답→자동 압축/모드계산→선택응답→자동 확정/회의실매칭/화상링크생성→참석재확인→상세→알림→비밀번호변경→예약현황)를 브라우저로 실제로 클릭해가며 end-to-end 검증 완료.
 
@@ -91,13 +93,85 @@
 - `src/app/(app)/meetings/MeetingListClient.tsx`: 하단 고정 "새 회의 만들기" 버튼(`.footer` 블록) 제거, 미사용된 `Link` import도 함께 정리. 회의 생성은 "예약" 탭의 "새 회의 만들기 시작" 버튼으로만 진입 가능(기존에도 있던 경로, 중복 진입점만 줄어든 것).
 - **검증**: `npx tsc --noEmit`/`npx next lint` 클린. 시드 실행 후 `Participant`를 직접 조회해 김민준의 6개 회의가 의도한 역할·상태·응답여부로 정확히 들어갔는지 확인, 선택확인중 회의의 숏리스트 슬롯(5개)·슬롯응답(슬롯당 3건) 개수 확인, 재시드해도 회의 개수가 6건으로 유지되는지(중복 생성 안 됨) 확인.
 
+## 후속 작업 2 — Vercel/Turso 배포 완료 + 실사용 피드백 반영 (2026-07-12 밤 ~ 07-13)
+
+위 "후속 작업 G"에서 Turso 마이그레이션 코드는 끝냈지만 Vercel 환경변수 등록·재배포가 남아있었음. 이 세션에서 그 마무리부터 시작해 배포된 URL(`https://meet-time-seven.vercel.app`)을 보며 실사용 피드백을 다수 반영했다. 아래는 커밋 순서대로 정리(전부 `npx tsc --noEmit`/`npx eslint src` 클린 + 대부분 `npx next build` 확인 후 커밋·푸시 완료).
+
+### I. Vercel 배포 마무리
+- Vercel 대시보드에서 `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN` 환경변수 등록(스크린샷 보며 실시간 안내) — "Environments"가 아니라 "Environment Variables" 메뉴라는 점, Shared 환경변수는 "Link to Projects"가 별도로 필요하다는 점, 값에 `.env` 파일의 리터럴 따옴표를 그대로 붙여넣으면 `LibsqlError: URL_INVALID`가 난다는 점, 값 자체에 보이지 않는 문자가 섞이면 "invalid characters" 에러가 난다는 점을 각각 발견해 해결.
+- GitHub 연동이 "Project Link not found"로 끊겨 있던 걸 재연결(Reconnect) 후 빈 커밋(`git commit --allow-empty`)으로 강제 재배포해 최종 확인 — 로그인부터 프로필설정까지 실제 배포 URL에서 정상 동작 확인.
+- 데모버전 회의 데이터(`seedDemoMeetings`)와 "내 회의" 하단 버튼 제거가 다른 동시 작업 세션에서 이미 반영돼 있던 것을 발견 — 의도된 변경인지 확인(응, 회의 생성은 예약 탭에서만 하도록) 후 커밋·Turso 재시딩.
+
+### J. 루트 접속 시 항상 로그인 화면부터
+- `src/app/page.tsx`: `redirect("/meetings")` → `redirect("/login")`.
+- `src/middleware.ts`: 이미 로그인된 세션이어도 `/login`에서 `/meetings`로 되돌리던 로직 제거 — URL로 들어오면 세션 유무와 무관하게 항상 로그인 화면이 먼저 보이도록.
+- 이 작업 도중 동시 작업 세션이 `schema.prisma`에 임시로 추가했던 `messengerType` 필드(마이그레이션 없이 추가돼 전체 User 쿼리가 깨짐)를 발견 — 상대 세션이 자체적으로 되돌린 뒤 Prisma client 재생성 + dev 서버 재기동으로 복구 확인.
+
+### K. 프로필 설정 — 사진 업로드/전화번호 자동포맷/메신저 라벨
+- `src/lib/image.ts` 신규: `resizeImageToDataUri`(256px 정사각형 크롭 후 JPEG data URI, 백엔드 파일저장소 없이 클라이언트에서만 처리).
+- `src/lib/phone.ts` 신규: `formatMobilePhone`(010-1234-5678), `formatLandlinePhone`(서울 02/지역 3자리 구분).
+- `ProfileSetupForm.tsx`: 아바타 편집 버튼에 숨김 `<input type=file accept=image/*>` 연결(모바일은 갤러리+카메라, 데스크톱은 파일탐색기), 전화번호·내선번호 입력에 자동 포맷 적용, "메신저 ID" 라벨을 특정 브랜드명 없이 "사내메신저"로 통일.
+- `ProfileClient.tsx`(내 정보)에도 동일한 전화번호 포맷터 + "사내메신저" 라벨 반영.
+
+### L. 내 정보 수정모드 — 로그아웃 제거 + 비밀번호 변경 추가
+- `changePasswordAction`(`src/server/actions/auth.ts`) 신규 — 현재 비밀번호 검증 후 새 비밀번호로 교체.
+- `ProfileClient.tsx`: 조회모드에는 로그아웃 버튼만, 수정모드에는 로그아웃 버튼을 없애고 현재/새/새 비밀번호 확인 3필드 + 자체 제출 버튼을 가진 "비밀번호 변경" 섹션 추가.
+
+### M. 알림 목록 예시 데이터 8건 시딩
+- `seedDemoNotifications(kimId)`(`prisma/seed.ts`) — 기존 데모 회의 6건에 연결된 안건등록/응답요청×2/시간확정×2/참석재확인/회의실확정/회의록등록 알림을 읽음/안읽음 섞어 시딩(멱등 — 이미 알림이 있으면 스킵). 사용자 승인 받은 뒤 Turso에 실행.
+
+### N. 예약 화면 — "최근 회의" → "내가 만든 회의"
+- `src/lib/meetingCard.ts` 신규: `MeetingCardVM`/`isPendingReconfirm`/`resolveMeetingCardHref`(회의 상태·역할·응답여부 기반 카드 클릭 라우팅 로직)를 `MeetingListClient.tsx`에서 추출해 공용화.
+- `reservations/page.tsx`: 아무 역할이나 참여 중인 회의 5건 → **내가 주최한(organizerId=본인)** 회의 5건으로 쿼리 변경.
+- `ReservationsClient.tsx`: 라벨 "최근 회의"→"내가 만든 회의", 회의명 클릭 시 `resolveMeetingCardHref`로 상태에 맞는 화면(응답/대시보드/재확인/상세)으로 이동하도록 변경(기존엔 항상 상세로만 이동).
+
+### O. 새 회의 만들기 — 조직도 모달 개선 + 인원 확충
+- "회의 생성" → "새 회의 만들기" 문구 변경.
+- 조직도 모달에 이름 검색 입력 추가(검색 중엔 해당 부서 자동 펼침), 부서별 인원을 직위(연차 높은 순: 부장>차장>과장>대리>주임>사원) → 이름순으로 정렬, 참석자 선택 후 확인할 수 있는 "저장(N명 선택됨)" 버튼을 모달 하단에 추가.
+- `prisma/seed.ts`의 `USERS`를 6명 → **14명**(영업팀·인사팀 신설)으로 확충 — 기존 6명은 이메일이 데모 회의 시딩에 그대로 참조되므로 순서/값 변경 없이 뒤에만 추가. `TEST_ACCOUNTS.md`/`README.md`에 8개 신규 계정 반영, 사용자 승인 받은 뒤 Turso에 재시딩.
+
+### P. 모든 화면 390×844px 고정 프레임
+- `.safe-area-shell`을 기존 `max-width:390px; min-height:100dvh`(실기기 뷰포트에 맞춰 늘어남)에서 `width:390px; height:844px; overflow:hidden`(항상 고정)으로 변경 — 제출/데모 시 어떤 환경에서도 동일한 크기로 보이도록.
+- `body`를 flex 중앙 정렬해 데스크톱 등 넓은 화면에서 프레임이 가운데 보이게 하고, `.safe-area-shell`에 `transform: translateZ(0)`을 추가해 토스트/확인팝업/바텀시트 같은 `position:fixed` 오버레이가 브라우저 전체가 아니라 이 프레임 기준으로 뜨도록 함.
+
+### Q. 참석재확인 화면 개편
+- 기존 "참석 확정 — 온라인 전환"(단일 버튼)을 **"참석 형태 변경"**(클릭 시 대면/온라인/불참 인라인 선택지 노출) + **"참석 확정"**(현재 참석 형태 유지하고 재확인만 완료) 두 버튼으로 분리.
+- "참석 형태 변경"에서 "불참" 선택 시 곧바로 사유 작성으로 가지 않고 "온라인으로는 참석 가능하신가요?" 확인 단계를 먼저 거치도록(사용자 명시 요청) — 그래도 불참이면 기존 사유 작성 폼으로 진입.
+- 기존 "불참 통보" 링크 자리는 **"대리 참석자 지정"**으로 대체(불참 진입 경로가 참석형태 변경 쪽으로 옮겨갔으므로 중복되던 별도 대리참석자 버튼 제거).
+- `src/server/actions/participants.ts`: `reconfirmOnlineAction`의 회의 형태 재계산 로직을 공용 헬퍼로 뽑아 `reconfirmOfflineAction`(신규)에도 재사용, 참석형태 변경 없이 재확인만 하는 `reconfirmAction`(신규) 추가.
+
+### R. 회의 상세류 화면 — 뒤로가기 버그 수정
+회의 상세/참석재확인/대시보드/응답/선택응답 5개 화면의 `SubHeader`가 `backHref="/meetings"`로 고정돼 있어, "내가 만든 회의"(예약 탭)에서 들어와도 뒤로가기를 누르면 예약 탭이 아니라 항상 "내 회의" 탭으로 이동하던 버그. `backHref`를 제거해 `SubHeader`의 기본 동작(`router.back()`)을 쓰도록 수정 — "새 회의 만들기" 화면에 이미 적용돼 있던 것과 동일한 방식.
+
+### S. 회의 상세 — 캘린더 추가 버튼을 회의 시작 전까지만
+확정 시간이 있으면 종료된 회의에도 계속 떠 있던 "캘린더에 추가" 버튼을 `!meetingStarted` 조건 추가로 시작 전까지만 노출.
+
+### T. 회의록 화면 — 스타일 누락 수정
+작성자 행(`.author-row`/`.author-label`/`.author-name`)이 JSX에서 이미 쓰이고 있었는데 해당 CSS가 `globals.css`에 없어 스타일 없이 렌더링되던 문제 수정. "향후 추진 과제" 빈 상태도 정의되지 않았던 `.action-empty` 대신 같은 화면의 다른 빈 상태와 동일한 `.meta-box` 패턴으로 통일.
+
+### U. 내 회의 검색창 배경 통일
+`.search-input-wrap` 배경을 `#faf7f2` → `#fff`로 바꿔 아래 회의 카드(흰색)와 통일(회의 생성 화면의 조직도 검색창도 같은 클래스 공유라 함께 반영).
+
+### V. 대시보드 접근 복구 + "리마인드 알림 보내기" 신규
+- **버그 발견**: `resolveMeetingCardHref`가 회의 상태가 "확정"이 되면 역할과 무관하게 항상 회의 상세로만 연결해, 주최자가 확정된 회의를 리스트에서 클릭해도 응답 현황·회의실 자동매칭 결과를 보는 대시보드로 다시 들어갈 방법이 없었음(설계문서의 "확정→대시보드→참석재확인→회의상세(시작부터)" 흐름과 불일치). 회의가 아직 시작 전이고 재확인도 끝났으면 주최자는 대시보드로, 시작한 뒤에는 회의 상세로 이동하도록 분기 추가.
+- **신규 기능**: `sendReminderAction`(`src/server/actions/meetings.ts`) 추가 — 제안중/재조율중이면 현재 단계(필수응답중은 필수+주최자, 선택확인중은 선택)의 미응답 참석자에게 "응답요청" 알림을, 확정 상태면 아직 참석 재확인을 안 한 참석자에게 "참석재확인" 알림을 재발송. 대시보드의 "참가자 응답 현황" 섹션 제목 옆에 "리마인드 보내기" 버튼 추가.
+
+### W. 회의실 현황 조회 — 시간 선택 완전 제거
+처음엔 시/분 선택을 00~23시/10분 단위로 개선하려 했으나, 사용자가 아예 시간 선택 자체를 없애고 **날짜+인원만으로 조회**하도록 요청 변경 — `searchHour`/`searchMinute`/`activeSearchMinutes` 상태와 관련 select 2개, `.room-time-select`/`.room-time-colon` CSS 전부 제거. 조회 후 회의실 상태는 특정 시각 기준이 아니라 그날 예약 유무("예약 있음"/"예약 가능")로 표시(조회 전 오늘 날짜인 경우의 "지금 예약중/비어있음" 표시는 유지).
+
+### X. 프로덕션 최종 점검
+`meet-time-seven.vercel.app`에 실제 세션 쿠키로 접속해 `/`, `/login`, `/meetings`, `/reservations`, `/notifications`, `/profile`, `/profile-setup`, `/onboarding`, `/meetings/new`, 대시보드·참석재확인·회의상세·회의록 화면까지 전부 200 응답 + 에러 없음 확인. 새로 만든 문구/버튼(새 회의 만들기, 리마인드 보내기, 참석 형태 변경/참석 확정/대리 참석자 지정, author-row, 캘린더 버튼 시작전/종료후 분기)도 실제 배포본에 반영된 것까지 텍스트 매칭으로 확인.
+
+### 운영 메모 — 동시 작업 세션 존재
+이 저장소는 **다른 Claude Code 세션(사용자 본인의 별도 계정/터미널)이 같은 로컬 경로에서 동시에 작업 중**이었다(예: 예약 탭 "내 회의실 예약" 목록 추가→제거, 캘린더 오늘 날짜 표시, 회의록 화면 일부 스타일). `git status`에서 내가 만들지 않은 변경사항이 보이면 반드시 `git diff`로 내용을 확인한 뒤 **내가 의도한 파일만 골라서 `git add`** 하고, 상대 세션의 진행 중인 작업은 그대로 두는 방식으로 충돌을 피했다. 다음 세션도 이 습관을 유지할 것 — `git add -A`/`git commit -a` 금지, 항상 파일 단위로 스테이징.
+
 ## 확정된 기술 스택
 
 - **Next.js 14.2.35** (App Router) + **React 18** — 스캐폴딩 당시 최신 Next.js 16 / Prisma 7이 훈련 데이터 이후 나온 버전이라 의도적으로 다운그레이드함(`next.config.ts`는 Next16 전용이라 `next.config.mjs`로 교체)
 - **Prisma 5.22.0 + SQLite** — 로컬 개발은 여전히 `prisma/dev.db`(`.env`의 `DATABASE_URL`) 파일을 그대로 사용. 배포(Vercel)용으로는 **Turso(원격 libSQL)** 를 추가 연결(`@prisma/adapter-libsql`, `src/lib/prisma.ts`가 `TURSO_DATABASE_URL` 존재 여부로 자동 분기) — 상세는 위 "후속 작업 G" 참고
 - **zod 3.25.76**(3.x API, Anthropic SDK 피어디펜던시 때문에 3.25+로 고정), **bcryptjs**, **jose**(세션 JWT), **tsx**(시드 스크립트 실행)
 - 인증: NextAuth 미사용, `src/lib/session.ts`(Edge 호환, middleware용) + `src/lib/auth.ts`(Node 전용, prisma/bcrypt 포함)로 직접 구현한 서명 쿠키 세션
-- 로그인 계정: `TEST_ACCOUNTS.md`·`README.md` 참고 — 6명 전부 초기 임시 비밀번호 `1111`(단, 브라우저 테스트 중 김민준 계정 비밀번호를 `5678`로 변경해 검증했음 — 필요하면 `1111`로 다시 바꾸거나 DB를 재시드). 비밀번호 몰라도 로그인 화면의 "데모버전으로 체험하기" 버튼으로 김민준 계정에 바로 진입 가능(`demoLoginAction`, 비밀번호 드리프트와 무관하게 항상 동작)
+- 로그인 계정: `TEST_ACCOUNTS.md`·`README.md` 참고 — 총 14명(기존 6명 + 조직도 확충용 8명, "후속 작업 2-O" 참고) 전부 초기 임시 비밀번호 `1111`(단, 브라우저 테스트 중 김민준 계정 비밀번호를 `5678`로 변경해 검증했음 — 필요하면 `1111`로 다시 바꾸거나 DB를 재시드). 비밀번호 몰라도 로그인 화면의 "데모버전으로 체험하기" 버튼으로 김민준 계정에 바로 진입 가능(`demoLoginAction`, 비밀번호 드리프트와 무관하게 항상 동작)
 - Git 저장소: `git init` 완료, 원격 `origin` = `https://github.com/junga-k/meet-time.git`(`master` 브랜치 푸시 완료)
 
 ## 지금 실행 방법
