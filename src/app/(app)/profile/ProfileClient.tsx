@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { updateContactInfoAction } from "@/server/actions/auth";
+import { updateContactInfoAction, changePasswordAction } from "@/server/actions/auth";
 import { Avatar } from "@/components/ui/Avatar";
 import { LogoutButton } from "@/components/ui/LogoutButton";
 import { useToast } from "@/components/ui/Toast";
@@ -28,6 +28,29 @@ export function ProfileClient(props: {
   const [saved, setSaved] = useState(form);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profilePending, setProfilePending] = useState(false);
+
+  const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwPending, setPwPending] = useState(false);
+
+  function changePassword() {
+    setPwError(null);
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPwError("새 비밀번호가 서로 일치하지 않아요.");
+      return;
+    }
+    setPwPending(true);
+    (async () => {
+      const result = await changePasswordAction({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword });
+      setPwPending(false);
+      if (!result.ok) {
+        setPwError(result.error);
+        return;
+      }
+      setPwForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      showToast("비밀번호가 변경됐어요");
+    })();
+  }
 
   function saveProfile() {
     setProfileError(null);
@@ -56,7 +79,11 @@ export function ProfileClient(props: {
             type="button"
             className="edit-link"
             onClick={() => {
-              if (editing) setForm(saved);
+              if (editing) {
+                setForm(saved);
+                setPwForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                setPwError(null);
+              }
               setEditing((v) => !v);
             }}
           >
@@ -157,9 +184,53 @@ export function ProfileClient(props: {
           </div>
         )}
 
-        <div style={{ marginTop: 32 }}>
-          <LogoutButton />
-        </div>
+        {editing && (
+          <div className="info-section">
+            <div className="section-label">비밀번호 변경</div>
+            <div className="field-group">
+              <label className="field-label">현재 비밀번호</label>
+              <input
+                type="password"
+                className="field"
+                value={pwForm.currentPassword}
+                onChange={(e) => setPwForm((f) => ({ ...f, currentPassword: e.target.value }))}
+              />
+            </div>
+            <div className="field-group">
+              <label className="field-label">새 비밀번호</label>
+              <input
+                type="password"
+                className="field"
+                value={pwForm.newPassword}
+                onChange={(e) => setPwForm((f) => ({ ...f, newPassword: e.target.value }))}
+              />
+            </div>
+            <div className="field-group">
+              <label className="field-label">새 비밀번호 확인</label>
+              <input
+                type="password"
+                className="field"
+                value={pwForm.confirmPassword}
+                onChange={(e) => setPwForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+              />
+            </div>
+            {pwError && <div className="field-error" style={{ marginBottom: 12 }}>{pwError}</div>}
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={pwPending || !pwForm.currentPassword || !pwForm.newPassword || !pwForm.confirmPassword}
+              onClick={changePassword}
+            >
+              {pwPending ? "변경 중..." : "비밀번호 변경"}
+            </button>
+          </div>
+        )}
+
+        {!editing && (
+          <div style={{ marginTop: 32 }}>
+            <LogoutButton />
+          </div>
+        )}
       </div>
 
       {editing && (

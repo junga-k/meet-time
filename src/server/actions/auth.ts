@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import {
   verifyPassword,
+  hashPassword,
   createSession,
   clearSession,
   requireCurrentUser,
@@ -130,5 +131,30 @@ export async function markOnboardingSeenAction(): Promise<ActionResult> {
   const user = await requireCurrentUser();
   await prisma.user.update({ where: { id: user.id }, data: { onboardingSeenAt: new Date() } });
   return { ok: true, redirectTo: "/meetings" };
+}
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "현재 비밀번호를 입력해주세요."),
+  newPassword: z.string().min(4, "새 비밀번호는 4자 이상이어야 해요."),
+});
+
+/** 화면16 내 정보 수정모드 — 비밀번호 변경 */
+export async function changePasswordAction(
+  input: { currentPassword: string; newPassword: string }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await requireCurrentUser();
+  const parsed = changePasswordSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "입력값을 확인해주세요." };
+  }
+
+  const valid = await verifyPassword(parsed.data.currentPassword, user.passwordHash);
+  if (!valid) {
+    return { ok: false, error: "현재 비밀번호가 올바르지 않습니다." };
+  }
+
+  const passwordHash = await hashPassword(parsed.data.newPassword);
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+  return { ok: true };
 }
 
