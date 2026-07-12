@@ -303,6 +303,93 @@ async function seedDemoMeetings(userByEmail: Record<string, { id: string; name: 
   }
 }
 
+// 데모 계정(김민준)의 "알림" 탭이 빈 화면으로 보이지 않도록, 위에서 시딩한 회의 6건에 연결된
+// 예시 알림을 만들어둔다. 김민준에게 알림이 하나라도 이미 있으면(재시드 등) 건너뛴다.
+async function seedDemoNotifications(kimId: string) {
+  const already = await prisma.notification.findFirst({ where: { userId: kimId } });
+  if (already) return;
+
+  const meetingsByTitle = Object.fromEntries(
+    (await prisma.meeting.findMany({ select: { id: true, title: true } })).map((m) => [m.title, m.id])
+  );
+  const now = Date.now();
+  const hoursAgo = (h: number) => new Date(now - h * 60 * 60_000);
+
+  const items: { title: string; type: string; message: string; createdAt: Date; isRead: boolean }[] = [
+    {
+      title: "3분기 로드맵 킥오프",
+      type: "안건등록",
+      message: "이지훈님이 안건을 등록했어요: 'Q3 목표 초안 리뷰'",
+      createdAt: hoursAgo(0.2),
+      isRead: false,
+    },
+    {
+      title: "디자인 시스템 검토",
+      type: "응답요청",
+      message: "'디자인 시스템 검토' 회의의 필수 응답을 기다리고 있어요",
+      createdAt: hoursAgo(2),
+      isRead: false,
+    },
+    {
+      title: "마케팅 캠페인 아이디어 회의",
+      type: "응답요청",
+      message: "'마케팅 캠페인 아이디어 회의' 후보 시간이 좁혀졌어요. 참석 가능 여부를 알려주세요",
+      createdAt: hoursAgo(5),
+      isRead: false,
+    },
+    {
+      title: "신규 입사자 온보딩 계획",
+      type: "시간확정",
+      message: "'신규 입사자 온보딩 계획' 회의 시간이 확정됐어요",
+      createdAt: hoursAgo(24),
+      isRead: true,
+    },
+    {
+      title: "신규 입사자 온보딩 계획",
+      type: "참석재확인",
+      message: "'신규 입사자 온보딩 계획' 확정된 일정에 대한 참석 여부를 재확인해주세요",
+      createdAt: hoursAgo(23.9),
+      isRead: false,
+    },
+    {
+      title: "신규 입사자 온보딩 계획",
+      type: "회의실확정",
+      message: "'신규 입사자 온보딩 계획' 회의실이 '회의실 A'(으)로 확정됐어요",
+      createdAt: hoursAgo(23.8),
+      isRead: true,
+    },
+    {
+      title: "UX 리서치 결과 공유",
+      type: "회의록등록",
+      message: "'UX 리서치 결과 공유' 회의록이 등록됐어요",
+      createdAt: hoursAgo(48),
+      isRead: true,
+    },
+    {
+      title: "팀 워크샵 기획",
+      type: "시간확정",
+      message: "'팀 워크샵 기획' 회의 시간이 확정됐어요",
+      createdAt: hoursAgo(24 * 18),
+      isRead: true,
+    },
+  ];
+
+  for (const item of items) {
+    const meetingId = meetingsByTitle[item.title];
+    if (!meetingId) continue;
+    await prisma.notification.create({
+      data: {
+        userId: kimId,
+        meetingId,
+        type: item.type,
+        message: item.message,
+        createdAt: item.createdAt,
+        isRead: item.isRead,
+      },
+    });
+  }
+}
+
 async function main() {
   const passwordHash = await bcrypt.hash(TEMP_PASSWORD, 10);
 
@@ -339,6 +426,7 @@ async function main() {
   const userByEmail = Object.fromEntries((await prisma.user.findMany()).map((u) => [u.email, u]));
   const roomByName = Object.fromEntries((await prisma.room.findMany()).map((r) => [r.name, r]));
   await seedDemoMeetings(userByEmail, roomByName);
+  await seedDemoNotifications(userByEmail[DEMO_ORGANIZER_EMAIL].id);
 
   console.log("\n=== 시드 완료 ===");
   console.log("아래 계정으로 로그인하세요 (임시 비밀번호 전원 동일, 자세한 내용은 TEST_ACCOUNTS.md 참고)\n");
