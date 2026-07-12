@@ -17,12 +17,12 @@ async function getMyParticipant(meetingId: string) {
   return { user, participant };
 }
 
-/** 화면8 옵션1: 참석 확정 — 온라인 전환 */
-export async function reconfirmOnlineAction(meetingId: string): Promise<ActionResult> {
+/** 참석 형태(대면/온라인) 변경 반영 공통 로직 — 필수참석자면 회의 전체 형태(Meeting.mode)도 재계산한다 */
+async function applyReconfirmedAttendanceMode(meetingId: string, mode: "대면" | "온라인"): Promise<void> {
   const { participant } = await getMyParticipant(meetingId);
   await prisma.participant.update({
     where: { id: participant.id },
-    data: { attendanceMode: "온라인", reconfirmedAt: new Date() },
+    data: { attendanceMode: mode, reconfirmedAt: new Date() },
   });
 
   const isRequired = participant.role === "필수" || participant.role === "주최자";
@@ -32,7 +32,7 @@ export async function reconfirmOnlineAction(meetingId: string): Promise<ActionRe
       where: { meetingId, role: { in: ["필수", "주최자"] } },
     });
     const newMode = computeMeetingMode(
-      requiredParticipants.map((p) => (p.id === participant.id ? "온라인" : (p.attendanceMode as AttendanceMode | null) ?? "대면"))
+      requiredParticipants.map((p) => (p.id === participant.id ? mode : (p.attendanceMode as AttendanceMode | null) ?? "대면"))
     );
     if (newMode !== meeting.mode) {
       const videoLink =
@@ -42,7 +42,27 @@ export async function reconfirmOnlineAction(meetingId: string): Promise<ActionRe
       await prisma.meeting.update({ where: { id: meetingId }, data: { mode: newMode, videoLink } });
     }
   }
+}
 
+/** 화면8: 참석 형태 변경 — 온라인으로 전환 */
+export async function reconfirmOnlineAction(meetingId: string): Promise<ActionResult> {
+  await applyReconfirmedAttendanceMode(meetingId, "온라인");
+  return { ok: true, data: undefined };
+}
+
+/** 화면8: 참석 형태 변경 — 대면으로 전환 */
+export async function reconfirmOfflineAction(meetingId: string): Promise<ActionResult> {
+  await applyReconfirmedAttendanceMode(meetingId, "대면");
+  return { ok: true, data: undefined };
+}
+
+/** 화면8: 참석 확정 — 기존 참석 형태 그대로 재확인만 완료 */
+export async function reconfirmAction(meetingId: string): Promise<ActionResult> {
+  const { participant } = await getMyParticipant(meetingId);
+  await prisma.participant.update({
+    where: { id: participant.id },
+    data: { reconfirmedAt: new Date() },
+  });
   return { ok: true, data: undefined };
 }
 

@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { reconfirmOnlineAction, setDelegateAction, declineWithReasonAction } from "@/server/actions/participants";
+import {
+  reconfirmOnlineAction,
+  reconfirmOfflineAction,
+  reconfirmAction,
+  setDelegateAction,
+  declineWithReasonAction,
+} from "@/server/actions/participants";
 import { SubHeader } from "@/components/ui/SubHeader";
 import { useToast } from "@/components/ui/Toast";
 
@@ -34,16 +40,29 @@ export function ReconfirmClient(props: {
   };
   const router = useRouter();
   const { showToast } = useToast();
-  const [mode, setMode] = useState<"idle" | "declineCheck" | "delegate" | "decline">("idle");
+  const [mode, setMode] = useState<"idle" | "modeChange" | "declineCheck" | "delegate" | "decline">("idle");
   const [delegateId, setDelegateId] = useState<string | null>(null);
   const [declineReason, setDeclineReason] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [resultMessage, setResultMessage] = useState<{ title: string; desc: string; warn: boolean } | null>(null);
 
-  function handleOnline() {
+  function handleSetAttendanceMode(attendanceMode: "대면" | "온라인") {
     setIsPending(true);
     (async () => {
-      const result = await reconfirmOnlineAction(props.meetingId);
+      const action = attendanceMode === "온라인" ? reconfirmOnlineAction : reconfirmOfflineAction;
+      const result = await action(props.meetingId);
+      setIsPending(false);
+      if (result.ok) {
+        showToast("참석 형태가 변경됐어요");
+        router.push(`/meetings/${props.meetingId}`);
+      }
+    })();
+  }
+
+  function handleConfirm() {
+    setIsPending(true);
+    (async () => {
+      const result = await reconfirmAction(props.meetingId);
       setIsPending(false);
       if (result.ok) {
         showToast("참석이 확정됐어요");
@@ -130,6 +149,26 @@ export function ReconfirmClient(props: {
           </div>
         </div>
 
+        {mode === "modeChange" && (
+          <div className="section">
+            <div className="section-title">참석 형태 선택</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button type="button" className="btn" disabled={isPending} onClick={() => handleSetAttendanceMode("대면")}>
+                대면으로 참석
+              </button>
+              <button type="button" className="btn" disabled={isPending} onClick={() => handleSetAttendanceMode("온라인")}>
+                온라인으로 참석
+              </button>
+              <button type="button" className="btn btn-danger" disabled={isPending} onClick={() => setMode("declineCheck")}>
+                불참
+              </button>
+            </div>
+            <button type="button" className="footer-link" disabled={isPending} onClick={() => setMode("idle")} style={{ display: "block", margin: "10px auto 0" }}>
+              취소
+            </button>
+          </div>
+        )}
+
         {mode === "declineCheck" && (
           <div className="section">
             <div className="change-notice">
@@ -140,11 +179,11 @@ export function ReconfirmClient(props: {
               <button type="button" className="btn btn-secondary" disabled={isPending} onClick={() => setMode("decline")}>
                 아니오, 불참 처리
               </button>
-              <button type="button" className="btn btn-primary" disabled={isPending} onClick={handleOnline}>
+              <button type="button" className="btn btn-primary" disabled={isPending} onClick={() => handleSetAttendanceMode("온라인")}>
                 네, 온라인으로 참석
               </button>
             </div>
-            <button type="button" className="footer-link" disabled={isPending} onClick={() => setMode("idle")} style={{ display: "block", margin: "10px auto 0" }}>
+            <button type="button" className="footer-link" disabled={isPending} onClick={() => setMode("modeChange")} style={{ display: "block", margin: "10px auto 0" }}>
               취소
             </button>
           </div>
@@ -209,14 +248,16 @@ export function ReconfirmClient(props: {
 
       {mode === "idle" && (
         <div className="footer" style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch" }}>
-          <button type="button" className="btn btn-primary" disabled={isPending} onClick={handleOnline}>
-            참석 확정 — 온라인 전환
-          </button>
-          <button type="button" className="btn btn-secondary" disabled={isPending} onClick={() => setMode("delegate")}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" className="btn btn-secondary" disabled={isPending} onClick={() => setMode("modeChange")}>
+              참석 형태 변경
+            </button>
+            <button type="button" className="btn btn-primary" disabled={isPending} onClick={handleConfirm}>
+              참석 확정
+            </button>
+          </div>
+          <button type="button" className="footer-link" disabled={isPending} onClick={() => setMode("delegate")} style={{ alignSelf: "center", marginTop: 2 }}>
             대리 참석자 지정
-          </button>
-          <button type="button" className="footer-link" disabled={isPending} onClick={() => setMode("declineCheck")} style={{ alignSelf: "center", marginTop: 2 }}>
-            불참 통보
           </button>
         </div>
       )}
