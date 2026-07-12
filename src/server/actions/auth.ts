@@ -11,6 +11,7 @@ import {
   requireCurrentUser,
   TEMP_PASSWORD,
 } from "@/lib/auth";
+import { resetDemoAccountData } from "@/server/demoSeed";
 
 export type ActionResult =
   | { ok: true; redirectTo: string; isTempPassword?: boolean }
@@ -58,12 +59,17 @@ export async function loginAction(input: { email: string; password: string }): P
  * 로그인 화면 "데모버전으로 체험하기" — 비밀번호 없이 데모 계정으로 바로 로그인.
  * 로그인→프로필설정→온보딩→내회의 4단계 흐름을 매번 그대로 보여주기 위해
  * phone/onboardingSeenAt을 매 데모 로그인마다 초기화한다(데모 전용 계정이라 부작용 없음).
+ * 데모 계정은 실제 DB row를 공유하는 구조라 이전 세션의 클릭(응답 제출, 재확인 등)이 그대로
+ * 남아있으면 다음 리뷰어가 보는 "내 회의" 목록이 처음 의도한 시나리오와 달라진다 — 그래서
+ * 데모용으로 시딩된 회의 6건도 매번 resetDemoAccountData()로 원래 상태로 되돌린다.
  */
 export async function demoLoginAction(): Promise<ActionResult> {
   const existing = await prisma.user.findUnique({ where: { email: DEMO_ACCOUNT_EMAIL } });
   if (!existing) {
     return { ok: false, error: "데모 계정을 찾을 수 없어요. 시드 데이터를 확인해주세요." };
   }
+
+  await resetDemoAccountData();
 
   const user = await prisma.user.update({
     where: { id: existing.id },

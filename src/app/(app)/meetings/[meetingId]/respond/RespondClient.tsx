@@ -75,7 +75,7 @@ export function RespondClient(props: {
       if (result.ok) {
         setResponded(true);
         showToast("✓ 응답 완료");
-        router.refresh();
+        router.push("/meetings");
       }
     })();
   }
