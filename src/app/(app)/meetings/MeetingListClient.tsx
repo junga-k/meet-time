@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatMeetingDate, formatTimeRange } from "@/lib/dates";
 import type { MeetingStatus, MeetingStage, ParticipantRole, ConfirmationStatus } from "@/lib/enums";
@@ -195,15 +194,6 @@ export function MeetingListClient({ meetings }: { meetings: MeetingCardVM[] }) {
             </div>
           );
         })}
-      </div>
-
-      <div className="footer">
-        <Link href="/meetings/new" className="btn btn-primary" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          새 회의 만들기
-        </Link>
       </div>
     </div>
   );

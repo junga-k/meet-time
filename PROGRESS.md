@@ -83,6 +83,14 @@
 - **아직 안 한 것**: Vercel 프로젝트 환경변수에 `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN`(+ 기존 `SESSION_SECRET`, `DATABASE_URL`은 더미값이라도 필요할 수 있음)을 추가하고 재배포해서 실제 배포 URL에서 로그인이 되는지 확인하는 마지막 단계가 남음 — 이건 Vercel 대시보드 설정이라 사용자가 직접 하거나 다음 세션에서 안내 필요.
 - 참고: `.env.example`에 `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN` 안내 주석 추가함.
 
+### H. 데모 계정용 회의 데이터 시딩 + "내 회의" 하단 버튼 제거
+데모버전(`demoLoginAction`, 김민준 계정)으로 들어가도 "내 회의" 목록이 비어 있어 전체 서비스를 둘러볼 수 없던 문제 해결.
+- `prisma/seed.ts`에 `seedDemoMeetings()` 추가 — 김민준이 **주최자·필수참석자·선택참석자** 역할을 각각 2건씩(총 6건) 겪도록 시딩: ①③⑤ 응답 대기 중인 제안중 회의(주최자/필수/선택 관점 각 1건, 화면3·12로 카드 클릭이 이어짐) ④ 확정됐지만 김민준 본인 재확인 전(목록에 "재확인 대기" amber 배지, 화면8로 이동) ⑤ 확정+재확인 완료+회의록 등록(목록에 "회의록" 보라 배지, 화면9로 이동) ⑥ 이미 종료된 확정 회의(목록 "종료" 필터용). 회의별로 실제 `TimeSlot`/`SlotResponse`/`RoomBooking`/`MeetingNote`까지 채워 카드 클릭 시 각 화면이 빈 데이터로 깨지지 않게 함. 제목 존재 여부로 멱등성 확보(재시드해도 중복 생성 안 됨, 재실행으로 확인).
+- `generateTimeSlotInputs`(`src/lib/scheduling.ts`)를 시드 스크립트에서도 그대로 재사용해 실제 앱과 동일한 규칙(09:00~20:00, 30분 간격)으로 슬롯 생성. `tsx`가 `tsconfig.json`의 `@/*` 경로 별칭을 자체적으로 해석하는 것을 직접 테스트로 확인한 뒤 `@/lib/...` import로 재사용(기존 `seed.ts`는 관례상 상대경로만 쓰고 있었음).
+- **주의**: `.env`에 `TURSO_DATABASE_URL`이 설정돼 있어 `npm run seed` 실행 시 로컬이 아니라 **배포용 원격 Turso DB에 직접 시딩됨**(`src/lib/prisma.ts`의 자동 분기, 후속 작업 G 참고) — 실제로 실행해 반영함.
+- `src/app/(app)/meetings/MeetingListClient.tsx`: 하단 고정 "새 회의 만들기" 버튼(`.footer` 블록) 제거, 미사용된 `Link` import도 함께 정리. 회의 생성은 "예약" 탭의 "새 회의 만들기 시작" 버튼으로만 진입 가능(기존에도 있던 경로, 중복 진입점만 줄어든 것).
+- **검증**: `npx tsc --noEmit`/`npx next lint` 클린. 시드 실행 후 `Participant`를 직접 조회해 김민준의 6개 회의가 의도한 역할·상태·응답여부로 정확히 들어갔는지 확인, 선택확인중 회의의 숏리스트 슬롯(5개)·슬롯응답(슬롯당 3건) 개수 확인, 재시드해도 회의 개수가 6건으로 유지되는지(중복 생성 안 됨) 확인.
+
 ## 확정된 기술 스택
 
 - **Next.js 14.2.35** (App Router) + **React 18** — 스캐폴딩 당시 최신 Next.js 16 / Prisma 7이 훈련 데이터 이후 나온 버전이라 의도적으로 다운그레이드함(`next.config.ts`는 Next16 전용이라 `next.config.mjs`로 교체)
