@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatMeetingDate, formatTimeRange, isSameDay, startOfDay } from "@/lib/dates";
-import { getRoomAvailability, type RoomAvailability } from "@/server/actions/rooms";
+import { getRoomAvailability, type RoomAvailability, type MyRoomReservation } from "@/server/actions/rooms";
 import { CalendarPicker } from "@/components/ui/CalendarPicker";
 import { useToast } from "@/components/ui/Toast";
 import { resolveMeetingCardHref, type MeetingCardVM } from "@/lib/meetingCard";
@@ -15,7 +15,8 @@ const RANGE = DAY_END - DAY_START;
 const TICK_HOURS = Array.from({ length: DAY_END / 60 - DAY_START / 60 + 1 }, (_, i) => DAY_START / 60 + i);
 const LABEL_HOURS = [9, 11, 13, 15, 17, 19];
 const BLOCK_COLORS = ["#2f6fb3", "#6b46c1", "#b8860b", "#0f7a6b", "#a83279"];
-const HOUR_OPTIONS = Array.from({ length: DAY_END / 60 - DAY_START / 60 + 1 }, (_, i) => DAY_START / 60 + i);
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
+const MINUTE_OPTIONS = Array.from({ length: 6 }, (_, i) => i * 10);
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -59,10 +60,12 @@ export function ReservationsClient({
   initialDate,
   initialRooms,
   myMeetings,
+  myRoomReservations,
 }: {
   initialDate: string;
   initialRooms: RoomAvailability[];
   myMeetings: MeetingCardVM[];
+  myRoomReservations: MyRoomReservation[];
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -104,6 +107,24 @@ export function ReservationsClient({
       setActiveSearchMinutes(searchHour !== "" && searchMinute !== "" ? Number(searchHour) * 60 + Number(searchMinute) : null);
       setActiveCapacity(capacityInput ? Number(capacityInput) : null);
       setHasSearched(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // "내 회의실 예약" 목록 클릭 시 해당 날짜로 조회 상태를 옮기고 그 회의실 상세를 바로 열어 보여준다.
+  async function jumpToReservation(r: MyRoomReservation) {
+    const date = startOfDay(r.startTime);
+    setIsLoading(true);
+    try {
+      const data = await getRoomAvailability(date);
+      setRoomsData(data);
+      setAppliedDate(date);
+      setSelectedDate(date);
+      setActiveSearchMinutes(null);
+      setActiveCapacity(null);
+      setHasSearched(true);
+      setOpenRoomId(r.roomId);
     } finally {
       setIsLoading(false);
     }
@@ -159,7 +180,24 @@ export function ReservationsClient({
         </div>
       ) : (
         <div className="screen-scroll">
-          <div className="room-search-row">
+          {myRoomReservations.length > 0 && (
+            <>
+              <div className="recent-label">내 회의실 예약</div>
+              {myRoomReservations.map((r) => (
+                <div key={r.meetingId} className="recent-row" onClick={() => jumpToReservation(r)}>
+                  <div>
+                    <div className="recent-title">{r.meetingTitle}</div>
+                    <div className="recent-meta">{r.roomName}</div>
+                  </div>
+                  <span className="recent-meta">
+                    {formatMeetingDate(r.startTime)} {formatTimeRange(r.startTime, r.endTime)}
+                  </span>
+                </div>
+              ))}
+            </>
+          )}
+
+          <div className="room-search-row" style={myRoomReservations.length > 0 ? { marginTop: 14 } : undefined}>
             <div className="date-field" onClick={() => setCalendarOpen((v) => !v)}>
               {selectedDate ? formatDateField(selectedDate) : "날짜 선택"}
             </div>
@@ -177,8 +215,11 @@ export function ReservationsClient({
               <span className="room-time-colon">:</span>
               <select className="room-time-select" value={searchMinute} onChange={(e) => setSearchMinute(e.target.value)}>
                 <option value="">분</option>
-                <option value="0">00분</option>
-                <option value="30">30분</option>
+                {MINUTE_OPTIONS.map((m) => (
+                  <option key={m} value={m}>
+                    {pad2(m)}분
+                  </option>
+                ))}
               </select>
             </span>
             <input
