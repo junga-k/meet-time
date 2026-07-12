@@ -42,6 +42,10 @@ body {
   font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 button,
@@ -84,17 +88,20 @@ a {
   transform: translateX(-50%) translateY(0);
 }
 
-/* SafeAreaShell — 모바일 전용 고정 폭(390px) 레이아웃. 실제 기기에서는 뷰포트 높이를 그대로 사용(100dvh),
-   더 넓은 화면(데스크톱 브라우저 테스트)에서는 와이어프레임처럼 중앙 정렬된 카드로 보이게 함 */
+/* SafeAreaShell — 모든 화면을 390x844px로 통일. 실제 기기/브라우저 뷰포트 크기와 무관하게 항상 이 고정
+   크기로 렌더링하고(제출/데모 시 어떤 환경에서도 동일하게 보이도록), 넘치는 콘텐츠는 .screen-scroll 등
+   내부 스크롤 영역이 담당해 프레임 밖으로 벗어나지 않게 함. transform은 하위 position:fixed 요소(토스트,
+   확인 팝업, 바텀시트)의 기준을 뷰포트가 아닌 이 프레임으로 고정하기 위함. */
 .safe-area-shell {
-  width: 100%;
-  max-width: 390px;
-  min-height: 100dvh;
-  margin: 0 auto;
+  width: 390px;
+  height: 844px;
+  overflow: hidden;
   background: var(--card-bg);
+  border: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
   position: relative;
+  transform: translateZ(0);
 }
 
 .status-bar {
