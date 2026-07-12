@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatMeetingDate, formatTimeRange, isSameDay, startOfDay } from "@/lib/dates";
-import { getRoomAvailability, type RoomAvailability, type MyRoomReservation } from "@/server/actions/rooms";
+import { getRoomAvailability, type RoomAvailability } from "@/server/actions/rooms";
 import { CalendarPicker } from "@/components/ui/CalendarPicker";
 import { useToast } from "@/components/ui/Toast";
 import { resolveMeetingCardHref, type MeetingCardVM } from "@/lib/meetingCard";
@@ -15,8 +15,6 @@ const RANGE = DAY_END - DAY_START;
 const TICK_HOURS = Array.from({ length: DAY_END / 60 - DAY_START / 60 + 1 }, (_, i) => DAY_START / 60 + i);
 const LABEL_HOURS = [9, 11, 13, 15, 17, 19];
 const BLOCK_COLORS = ["#2f6fb3", "#6b46c1", "#b8860b", "#0f7a6b", "#a83279"];
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
-const MINUTE_OPTIONS = Array.from({ length: 6 }, (_, i) => i * 10);
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -33,19 +31,11 @@ function formatDateField(d: Date) {
 function initialDayLabel(d: Date) {
   return `오늘(${d.getMonth() + 1}/${d.getDate()}, ${DOW[d.getDay()]}) 기준 · 09:00 – 20:00`;
 }
-function searchedDayLabel(d: Date, hour: string, minute: string, capacityNote: string) {
-  const dateStr = formatDateField(d);
-  if (hour !== "" && minute !== "") {
-    return `${dateStr} · ${pad2(Number(hour))}:${pad2(Number(minute))} 기준 조회 결과${capacityNote}`;
-  }
-  return `${dateStr} 기준 · 09:00 – 20:00${capacityNote}`;
+function searchedDayLabel(d: Date, capacityNote: string) {
+  return `${formatDateField(d)} 기준 · 09:00 – 20:00${capacityNote}`;
 }
 
-function getRoomStatus(room: RoomAvailability, searchMinutes: number | null, hasSearched: boolean, isToday: boolean) {
-  if (searchMinutes != null) {
-    const busy = room.bookings.some((b) => searchMinutes >= toMinutesOfDay(b.startTime) && searchMinutes < toMinutesOfDay(b.endTime));
-    return { busy, label: `${pad2(Math.floor(searchMinutes / 60))}:${pad2(searchMinutes % 60)} 기준 ${busy ? "예약중" : "비어있음"}` };
-  }
+function getRoomStatus(room: RoomAvailability, hasSearched: boolean, isToday: boolean) {
   if (!hasSearched && isToday) {
     const now = new Date();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -60,12 +50,10 @@ export function ReservationsClient({
   initialDate,
   initialRooms,
   myMeetings,
-  myRoomReservations,
 }: {
   initialDate: string;
   initialRooms: RoomAvailability[];
   myMeetings: MeetingCardVM[];
-  myRoomReservations: MyRoomReservation[];
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -75,20 +63,17 @@ export function ReservationsClient({
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(today);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [searchHour, setSearchHour] = useState("");
-  const [searchMinute, setSearchMinute] = useState("");
   const [capacityInput, setCapacityInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const [appliedDate, setAppliedDate] = useState(today);
   const [roomsData, setRoomsData] = useState(initialRooms);
-  const [activeSearchMinutes, setActiveSearchMinutes] = useState<number | null>(null);
   const [activeCapacity, setActiveCapacity] = useState<number | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [openRoomId, setOpenRoomId] = useState<string | null>(null);
 
   const dayLabel = hasSearched
-    ? searchedDayLabel(appliedDate, activeSearchMinutes != null ? String(Math.floor(activeSearchMinutes / 60)) : "", activeSearchMinutes != null ? String(activeSearchMinutes % 60) : "", activeCapacity ? ` · 인원 ${activeCapacity}명 이상` : "")
+    ? searchedDayLabel(appliedDate, activeCapacity ? ` · 인원 ${activeCapacity}명 이상` : "")
     : initialDayLabel(appliedDate);
 
   const filteredRooms = activeCapacity ? roomsData.filter((r) => (r.capacity ?? 0) >= activeCapacity) : roomsData;
@@ -104,27 +89,8 @@ export function ReservationsClient({
       const data = await getRoomAvailability(selectedDate);
       setRoomsData(data);
       setAppliedDate(selectedDate);
-      setActiveSearchMinutes(searchHour !== "" && searchMinute !== "" ? Number(searchHour) * 60 + Number(searchMinute) : null);
       setActiveCapacity(capacityInput ? Number(capacityInput) : null);
       setHasSearched(true);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  // "내 회의실 예약" 목록 클릭 시 해당 날짜로 조회 상태를 옮기고 그 회의실 상세를 바로 열어 보여준다.
-  async function jumpToReservation(r: MyRoomReservation) {
-    const date = startOfDay(r.startTime);
-    setIsLoading(true);
-    try {
-      const data = await getRoomAvailability(date);
-      setRoomsData(data);
-      setAppliedDate(date);
-      setSelectedDate(date);
-      setActiveSearchMinutes(null);
-      setActiveCapacity(null);
-      setHasSearched(true);
-      setOpenRoomId(r.roomId);
     } finally {
       setIsLoading(false);
     }
@@ -203,25 +169,6 @@ export function ReservationsClient({
             </div>
           </div>
           <div className="room-search-row last">
-            <span style={{ display: "flex", alignItems: "center", gap: 3, flexShrink: 0 }}>
-              <select className="room-time-select" value={searchHour} onChange={(e) => setSearchHour(e.target.value)}>
-                <option value="">시</option>
-                {HOUR_OPTIONS.map((h) => (
-                  <option key={h} value={h}>
-                    {pad2(h)}시
-                  </option>
-                ))}
-              </select>
-              <span className="room-time-colon">:</span>
-              <select className="room-time-select" value={searchMinute} onChange={(e) => setSearchMinute(e.target.value)}>
-                <option value="">분</option>
-                {MINUTE_OPTIONS.map((m) => (
-                  <option key={m} value={m}>
-                    {pad2(m)}분
-                  </option>
-                ))}
-              </select>
-            </span>
             <input
               type="text"
               inputMode="numeric"
@@ -272,7 +219,7 @@ export function ReservationsClient({
 
           {filteredRooms.length === 0 && <div className="room-detail-empty">조건에 맞는 회의실이 없어요</div>}
           {filteredRooms.map((room) => {
-            const status = getRoomStatus(room, activeSearchMinutes, hasSearched, isSameDay(appliedDate, today));
+            const status = getRoomStatus(room, hasSearched, isSameDay(appliedDate, today));
             return (
               <div key={room.id} className="room-card" onClick={() => setOpenRoomId(room.id)}>
                 <div className="room-card-top">
