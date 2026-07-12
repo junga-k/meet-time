@@ -4,7 +4,8 @@
 // 실제 허용값 검증은 src/lib/enums.ts(zod)에서 수행한다.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {

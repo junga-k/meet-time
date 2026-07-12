@@ -64,10 +64,29 @@
 - **버그 발견 및 수정**: 처음엔 `--page-bg`에 크림베이지, `--card-bg`에 흰색을 넣었는데 `.safe-area-shell`(앱 카드)이 `max-width:390px`라 실제 모바일 폭에서는 `--page-bg`(body)가 전혀 노출되지 않는 구조라는 걸 사용자 실사용 피드백으로 확인 — 카드가 뷰포트를 완전히 덮어 리브랜딩의 핵심인 크림 톤이 실기기에서는 안 보이는 문제였음. 두 값을 서로 바꿔 크림 톤이 실제로 보이는 `--card-bg`로 이동. 이후 "색이 진하다"는 피드백으로 `--card-bg`를 `#f8f1ea`→`#fcf8f4`(약 96% 흰색 혼합)로 추가로 옅게 조정.
 - **검증**: `npx tsc --noEmit`/`npx next lint` 클린. 개발 서버가 서빙하는 실제 CSS 번들(`/_next/static/css/app/layout.css`)에서 `--ink`/`--page-bg`/`--card-bg`/`--accent-red` 값이 반영됐는지 직접 확인(색상 값 교체 작업이라 코드 구조 변경 없음).
 
+### G. Vercel 배포 실패 해결 + Turso(원격 libSQL)로 DB 이전
+사용자가 Vercel 배포를 시도하며 겪은 두 가지 문제를 순차 해결:
+
+1. **1차: "Next.js 프로젝트라 승인이 안 됨"** — `next.config.mjs`에 `eslint.ignoreDuringBuilds`/`typescript.ignoreBuildErrors` 추가(사용자 요청 그대로, 단 파일이 `.mjs`라 `module.exports` 대신 기존 `export default` 형식에 맞춰 적용).
+2. **2차: "Failed to collect page data for /meetings/[meetingId]/adjust"** — 로컬에서 `node_modules/.prisma/client`를 지우고 재빌드해 **완전히 동일한 에러(같은 라우트까지)**를 재현해 원인 특정: `package.json`에 `postinstall` 스크립트가 없어서 Vercel의 `npm install` 후 Prisma Client가 생성되지 않은 상태로 빌드가 진행됐던 것. `"postinstall": "prisma generate"` 추가로 해결, 로컬 재현 시나리오로 수정 확인.
+3. **근본 문제 — SQLite는 Vercel(서버리스)에서 애초에 못 씀**: `prisma/dev.db`가 `.gitignore`에 있어 배포물에 파일 자체가 없고(사용자가 "DB도 커밋한거 아니야?"라고 질문해 확인해줌), 설령 포함해도 서버리스 함수는 요청마다 파일시스템이 초기화돼 쓰기가 유지되지 않음. Railway/Render(디스크 유지되는 서버) 대안도 제시했으나 "제출용이라 어느 환경에서도 문제없어야" 한다는 요구사항 때문에, 안정성이 가장 검증된 **Vercel + 네트워크 기반 DB** 조합을 위해 **Turso(SQLite 호환 서버리스 DB)** 로 이전.
+
+**Turso 마이그레이션 상세**:
+- Turso CLI 설치(`curl -sSfL https://get.tur.so/install.sh | bash`) → 사용자가 직접 GitHub로 `turso auth login` 인증(계정 생성은 대신할 수 없어 사용자가 진행) → `turso db create meet-time`(AWS ap-northeast-1)으로 DB 생성.
+- `turso db tokens create`로 발급받은 토큰은 터미널에 출력하지 않고 바로 `.env`에 파일 기록으로만 저장(쉘 출력에 노출 안 되게 `TOKEN=$(...); printf ... >> .env` 형태로 처리).
+- `npm install @libsql/client@^0.8.0 @prisma/adapter-libsql@5.22.0`(주의: `@prisma/adapter-libsql`을 버전 지정 없이 설치하면 최신 v7이 깔려 Prisma 5.22.0 클라이언트와 안 맞음 — 반드시 `@prisma/client`와 동일한 5.22.0으로 버전 고정 필요).
+- `prisma/schema.prisma`의 `generator client`에 `previewFeatures = ["driverAdapters"]` 추가(Prisma 5.x에서 드라이버 어댑터는 프리뷰 기능). `datasource.url`은 로컬 파일(`env("DATABASE_URL")`) 그대로 유지 — Turso 공식 워크플로우가 "로컬 SQLite로 마이그레이션 생성 → `turso db shell`로 원격에 수동 적용"이라 CLI용 로컬 연결은 남겨둠(`prisma migrate deploy`는 Turso에서 공식 미지원).
+- `src/lib/prisma.ts`: `TURSO_DATABASE_URL` 환경변수가 있으면 `@libsql/client`의 `createClient()`로 만든 client를 `PrismaLibSQL` 어댑터에 감싸 사용, 없으면(로컬 기본값) 기존처럼 로컬 SQLite 파일 그대로 사용하도록 분기. **주의**: 처음엔 공식 문서 예제(최신 버전 기준)대로 `new PrismaLibSQL({ url, authToken })`(설정 객체 직접 전달)로 짰다가 `this.client.transaction is not a function` 런타임 에러 발생 — 5.22.0에 고정된 `@prisma/adapter-libsql`의 실제 README를 확인해보니 이 버전은 `createClient()`로 만든 client **인스턴스**를 넘겨야 하는 구버전 API였음(`new PrismaLibSQL(libsqlClientInstance)`). 버전마다 API가 다르므로 설치된 실제 패키지의 README/타입을 확인하는 습관 필요.
+- `prisma/seed.ts`가 자체적으로 `new PrismaClient()`를 새로 만들고 있어서 위 어댑터 분기를 안 타고 로컬 파일에만 시딩되는 문제 발견 → `src/lib/prisma.ts`의 공용 `prisma` 싱글턴을 import하도록 수정.
+- 기존 마이그레이션 3개(`20260712035144_init`, `20260712040922_add_reconfirmed_at`, `20260712075443_attendance_mode_default_offline`)를 순서대로 `turso db shell meet-time < migration.sql`로 원격 DB에 수동 적용, `npm run seed`로 6개 계정 + 4개 회의실 시딩 완료(`turso db shell`로 테이블/행 개수 직접 확인).
+- **검증**: `npx tsc --noEmit`/`npx eslint src`/`npx next build` 전부 클린. 브라우저 확장이 이 세션 도중 끊겨서 UI 클릭 검증 대신, 실제 앱이 쓰는 `src/lib/prisma.ts`를 그대로 import하는 임시 스크립트로 읽기(유저 조회+비밀번호 검증+카운트)와 쓰기(row 생성→읽기확인→삭제) 전부 Turso를 통해 왕복되는 것을 확인 후 스크립트 삭제. 로컬 dev 서버(`localhost:3311`)도 재기동해 실제로 Turso 연결로 정상 구동 중.
+- **아직 안 한 것**: Vercel 프로젝트 환경변수에 `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN`(+ 기존 `SESSION_SECRET`, `DATABASE_URL`은 더미값이라도 필요할 수 있음)을 추가하고 재배포해서 실제 배포 URL에서 로그인이 되는지 확인하는 마지막 단계가 남음 — 이건 Vercel 대시보드 설정이라 사용자가 직접 하거나 다음 세션에서 안내 필요.
+- 참고: `.env.example`에 `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN` 안내 주석 추가함.
+
 ## 확정된 기술 스택
 
 - **Next.js 14.2.35** (App Router) + **React 18** — 스캐폴딩 당시 최신 Next.js 16 / Prisma 7이 훈련 데이터 이후 나온 버전이라 의도적으로 다운그레이드함(`next.config.ts`는 Next16 전용이라 `next.config.mjs`로 교체)
-- **Prisma 5.22.0 + SQLite** (`prisma/dev.db`, `.env`의 `DATABASE_URL`)
+- **Prisma 5.22.0 + SQLite** — 로컬 개발은 여전히 `prisma/dev.db`(`.env`의 `DATABASE_URL`) 파일을 그대로 사용. 배포(Vercel)용으로는 **Turso(원격 libSQL)** 를 추가 연결(`@prisma/adapter-libsql`, `src/lib/prisma.ts`가 `TURSO_DATABASE_URL` 존재 여부로 자동 분기) — 상세는 위 "후속 작업 G" 참고
 - **zod 3.25.76**(3.x API, Anthropic SDK 피어디펜던시 때문에 3.25+로 고정), **bcryptjs**, **jose**(세션 JWT), **tsx**(시드 스크립트 실행)
 - 인증: NextAuth 미사용, `src/lib/session.ts`(Edge 호환, middleware용) + `src/lib/auth.ts`(Node 전용, prisma/bcrypt 포함)로 직접 구현한 서명 쿠키 세션
 - 로그인 계정: `TEST_ACCOUNTS.md`·`README.md` 참고 — 6명 전부 초기 임시 비밀번호 `1111`(단, 브라우저 테스트 중 김민준 계정 비밀번호를 `5678`로 변경해 검증했음 — 필요하면 `1111`로 다시 바꾸거나 DB를 재시드). 비밀번호 몰라도 로그인 화면의 "데모버전으로 체험하기" 버튼으로 김민준 계정에 바로 진입 가능(`demoLoginAction`, 비밀번호 드리프트와 무관하게 항상 동작)

@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { markOnboardingSeenAction } from "@/server/actions/auth";
+
+const AUTOPLAY_DELAY_MS = 4000;
+const SWIPE_THRESHOLD_PX = 40;
 
 const SLIDES = [
   {
@@ -26,8 +29,8 @@ const SLIDES = [
     ),
   },
   {
-    title: "참석 방식을 골라주세요",
-    body: "참여 가능한 참석 형태를 선택하면,\n회의 형태가 자동으로 정해져요.\n그에 맞춰 회의실 예약까지 진행해요.",
+    title: "회의실 예약까지 진행해요",
+    body: "회의 일정이 확정되면\n회의실 예약도 함께 진행해요.",
     icon: (
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="8" r="3.8" />
@@ -53,7 +56,50 @@ export default function OnboardingPage() {
   const [isPending, startTransition] = useTransition();
   const isLast = index === SLIDES.length - 1;
 
+  const autoplayTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dragStartXRef = useRef<number | null>(null);
+
+  function stopAutoplay() {
+    if (autoplayTimerRef.current) {
+      clearInterval(autoplayTimerRef.current);
+      autoplayTimerRef.current = null;
+    }
+  }
+
+  // 일정 시간(4초)마다 자동으로 다음 슬라이드로 넘어감 — 마지막 슬라이드에 도달하면 멈춤.
+  // 사용자가 버튼/점/드래그로 직접 조작하면 그 시점부터 자동재생은 멈춤(wireframe_14 dev-notes 기준)
+  useEffect(() => {
+    autoplayTimerRef.current = setInterval(() => {
+      setIndex((i) => {
+        if (i < SLIDES.length - 1) return i + 1;
+        stopAutoplay();
+        return i;
+      });
+    }, AUTOPLAY_DELAY_MS);
+    return stopAutoplay;
+  }, []);
+
+  function goTo(idx: number) {
+    setIndex(Math.max(0, Math.min(SLIDES.length - 1, idx)));
+  }
+
+  function handlePointerDown(e: React.PointerEvent) {
+    dragStartXRef.current = e.clientX;
+  }
+  function handlePointerUp(e: React.PointerEvent) {
+    if (dragStartXRef.current === null) return;
+    const deltaX = e.clientX - dragStartXRef.current;
+    dragStartXRef.current = null;
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX) return;
+    stopAutoplay();
+    setIndex((i) => Math.max(0, Math.min(SLIDES.length - 1, deltaX < 0 ? i + 1 : i - 1)));
+  }
+  function handlePointerCancel() {
+    dragStartXRef.current = null;
+  }
+
   function finish() {
+    stopAutoplay();
     startTransition(async () => {
       const result = await markOnboardingSeenAction();
       if (result.ok) router.push(result.redirectTo);
@@ -74,6 +120,9 @@ export default function OnboardingPage() {
       </div>
 
       <div
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
         style={{
           flex: 1,
           position: "relative",
@@ -83,6 +132,9 @@ export default function OnboardingPage() {
           justifyContent: "center",
           padding: "20px 28px",
           textAlign: "center",
+          touchAction: "pan-y",
+          cursor: "grab",
+          userSelect: "none",
         }}
       >
         <div
@@ -113,7 +165,10 @@ export default function OnboardingPage() {
             key={i}
             type="button"
             aria-label={`${i + 1}번째 슬라이드로 이동`}
-            onClick={() => setIndex(i)}
+            onClick={() => {
+              stopAutoplay();
+              goTo(i);
+            }}
             style={{
               width: i === index ? 16 : 6,
               height: 6,
@@ -133,7 +188,14 @@ export default function OnboardingPage() {
           type="button"
           className="btn btn-primary"
           disabled={isPending}
-          onClick={() => (isLast ? finish() : setIndex((i) => i + 1))}
+          onClick={() => {
+            stopAutoplay();
+            if (isLast) {
+              finish();
+            } else {
+              setIndex((i) => i + 1);
+            }
+          }}
         >
           {isPending ? "이동 중..." : isLast ? "시작하기" : "다음"}
         </button>
