@@ -51,7 +51,6 @@ export default async function MeetingDetailPage({ params }: { params: { meetingI
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       <SubHeader
         title="회의 상세"
-        backHref="/meetings"
         attendee={{
           userName: user.name,
           userProfileImageUrl: user.profileImageUrl,

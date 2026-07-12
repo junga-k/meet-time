@@ -80,7 +80,6 @@ export function DashboardClient(props: {
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       <SubHeader
         title="회의 대시보드"
-        backHref="/meetings"
         attendee={{
           userName: props.userName,
           userProfileImageUrl: props.userProfileImageUrl,

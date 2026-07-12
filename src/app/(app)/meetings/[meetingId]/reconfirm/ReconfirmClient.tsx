@@ -104,7 +104,7 @@ export function ReconfirmClient(props: {
   if (resultMessage) {
     return (
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-        <SubHeader title="참석 재확인" backHref="/meetings" attendee={attendee} />
+        <SubHeader title="참석 재확인" attendee={attendee} />
         <div style={{ padding: 16 }}>
           <div className={`result-box${resultMessage.warn ? " warn" : ""}`}>
             <div className="result-title">{resultMessage.title}</div>
@@ -120,7 +120,7 @@ export function ReconfirmClient(props: {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-      <SubHeader title="참석 재확인" backHref="/meetings" attendee={attendee} />
+      <SubHeader title="참석 재확인" attendee={attendee} />
 
       <div className="screen-scroll">
         <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{props.meetingTitle}</div>

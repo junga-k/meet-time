@@ -65,7 +65,6 @@ export function ShortlistClient(props: {
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       <SubHeader
         title="선택 응답"
-        backHref="/meetings"
         attendee={{
           userName: props.userName,
           userProfileImageUrl: props.userProfileImageUrl,
